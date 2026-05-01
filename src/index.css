@@ -1,20 +1,72 @@
 @import "tailwindcss";
 
-/* ── Design tokens ── */
+/* ── FB design tokens (warm-dark) ── */
+:root {
+  --fb-bg:            #16130f;
+  --fb-bg-2:          #1d1a14;
+  --fb-card:          #221e17;
+  --fb-card-2:        #2a251c;
+  --fb-border:        rgba(255,240,220,0.07);
+  --fb-border-strong: rgba(255,240,220,0.13);
+  --fb-divider:       rgba(255,240,220,0.05);
+  --fb-text:          #ece8df;
+  --fb-text-2:        #a59c8c;
+  --fb-text-3:        #6e6757;
+  --fb-accent:        #d97706;
+  --fb-accent-2:      #f59e3b;
+  --fb-accent-soft:   rgba(217,119,6,0.12);
+  --fb-green:         #e8941a;
+  --fb-amber:         #d46c14;
+  --fb-orange:        #c05818;
+  --fb-red:           #b83a10;
+  --fb-blue:          #7aa6c8;
+  --font-display:     "Inter Tight", system-ui, sans-serif;
+  --font-body:        "Inter Tight", "Inter", system-ui, sans-serif;
+  --font-serif:       "Fraunces", "Iowan Old Style", Georgia, serif;
+  --font-mono:        "JetBrains Mono", ui-monospace, monospace;
+}
+
+/* ── FB animations ── */
+@keyframes fb-fade-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fb-pop {
+  0%   { scale: 1; }
+  35%  { scale: 1.06; }
+  100% { scale: 1; }
+}
+@keyframes fb-row-in {
+  from { opacity: 0; transform: translateX(-8px); background: rgba(196,92,0,0.12); }
+  to   { opacity: 1; transform: translateX(0); background: transparent; }
+}
+@keyframes fb-toast-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Utility ── */
+.tnum { font-variant-numeric: tabular-nums; }
+
+/* ── Legacy aliases → fb tokens (dark mode source of truth) ── */
 :root {
   color-scheme: dark;
-  --bg:         #0d0b09;
-  --nav-bg:     #131109;
-  --card-bg:    #1c1a16;
-  --card-hover: #242118;
-  --text:       #e9e6e0;
-  --text-sec:   #8a8278;
-  --border:     rgba(255,240,220,0.08);
-  --accent:     #c45c00;
-  --accent2:    #e07020;
-  --green:      #e8941a;
-  --yellow:     #d46c14;
-  --red:        #b83a10;
+  --bg:         var(--fb-bg);
+  --nav-bg:     var(--fb-bg-2);
+  --card-bg:    var(--fb-card);
+  --card-hover: var(--fb-card-2);
+  --text:       var(--fb-text);
+  --text-sec:   var(--fb-text-2);
+  --border:     var(--fb-border);
+  --accent:     var(--fb-accent);
+  --accent2:    var(--fb-accent-2);
+  --green:      var(--fb-green);
+  --yellow:     var(--fb-amber);
+  --red:        var(--fb-red);
   --shadow:     0 2px 12px rgba(0,0,0,0.65);
   --overlay:    rgba(0,0,0,0.65);
   --radius:     12px;
@@ -93,7 +145,9 @@ body.light {
 
   --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
 
-  --font-family-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-family-sans:  "Fraunces", "Iowan Old Style", Georgia, serif;
+  --font-family-serif: "Fraunces", "Iowan Old Style", Georgia, serif;
+  --font-family-mono:  "JetBrains Mono", ui-monospace, "SFMono-Regular", monospace;
 
   --font-size-2xs: 10px;
   --font-size-xs:  11px;
@@ -101,11 +155,11 @@ body.light {
   --font-size-base: 13px;
   --font-size-md:  14px;
   --font-size-lg:  15px;
-  --font-size-xl:  16px;
-  --font-size-2xl: 18px;
-  --font-size-3xl: 22px;
-  --font-size-4xl: 28px;
-  --font-size-5xl: 30px;
+  --font-size-xl:  18px; /* Increased from 16px */
+  --font-size-2xl: 22px; /* Increased from 18px */
+  --font-size-3xl: 28px; /* Increased from 22px */
+  --font-size-4xl: 32px;
+  --font-size-5xl: 36px;
 }
 
 /* ── Base resets ── */
@@ -114,7 +168,7 @@ body.light {
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: var(--font-family-sans);
   font-size: 15px;
   margin: 0;
   padding: 0;
@@ -134,6 +188,53 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 
 /* ── Barcode scanner: mirror preview only (raw frame stays normal for decoding) ── */
 #barcode-reader video { transform: scaleX(-1); }
+
+/* ── Scrollbars — thin, blended into dark UI ── */
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,240,220,0.10) transparent;
+}
+
+/* Webkit (Chrome, Safari, Electron) */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255,240,220,0.10);
+  border-radius: 99px;
+  transition: background 0.2s;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255,240,220,0.22);
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Light mode overrides */
+body.light * {
+  scrollbar-color: rgba(0,0,0,0.12) transparent;
+}
+body.light ::-webkit-scrollbar-thumb {
+  background: rgba(0,0,0,0.12);
+}
+body.light ::-webkit-scrollbar-thumb:hover {
+  background: rgba(0,0,0,0.22);
+}
+
+/* Completely hidden (used on horizontal chip rows, etc.) */
+.hide-scrollbar {
+  scrollbar-width: none;
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
 
 /* ── Reusable component classes (apply via `className`) ── */
 @layer components {

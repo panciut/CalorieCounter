@@ -15,9 +15,22 @@ interface Props {
 
 interface SetRow { reps: string; weight_kg: string; }
 
+const COLLAPSE_KEY = 'dashboard.exercise.collapsed';
+
 export default function ExerciseSection({ date, onCaloriesChange }: Props) {
   const { t } = useT();
   const { showToast } = useToast();
+
+  const [collapsed, setCollapsed] = useState<boolean>(() => {
+    try { return localStorage.getItem(COLLAPSE_KEY) === '1'; } catch { return false; }
+  });
+  function toggleCollapsed() {
+    setCollapsed(c => {
+      const next = !c;
+      try { localStorage.setItem(COLLAPSE_KEY, next ? '1' : '0'); } catch { /* */ }
+      return next;
+    });
+  }
 
   const [exercises, setExercises]   = useState<Exercise[]>([]);
   const [exTypes, setExTypes]       = useState<ExerciseType[]>([]);
@@ -130,32 +143,50 @@ export default function ExerciseSection({ date, onCaloriesChange }: Props) {
 
   const inputCls = 'rounded-lg border border-border bg-bg px-3 py-1.5 text-sm text-text focus:outline-none focus:border-accent w-full';
 
+  const totalKcal = exercises.reduce((s, e) => s + e.calories_burned, 0);
+
   return (
     <div className="bg-card border border-border rounded-xl p-4">
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-xs font-semibold text-text-sec uppercase tracking-wider">Exercise</h3>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={openPlanPicker}
-            disabled={loggingPlan}
-            className="text-xs px-3 py-1 rounded-lg border border-border text-text-sec hover:border-accent hover:text-accent cursor-pointer transition-colors disabled:opacity-40"
-          >
-            {loggingPlan ? '…' : t('exercise.plans.logFromPlan')}
-          </button>
-          <button
-            onClick={() => { resetForm(); setOpen(true); }}
-            className="text-xs px-3 py-1 rounded-lg border border-border text-text-sec hover:border-accent hover:text-accent cursor-pointer transition-colors"
-          >
-            + Add
-          </button>
-        </div>
+      <div className={`flex items-center justify-between gap-2 ${collapsed ? '' : 'mb-3'}`}>
+        <button
+          onClick={toggleCollapsed}
+          className="flex items-center gap-2 cursor-pointer group flex-1 min-w-0 text-left"
+          aria-expanded={!collapsed}
+          aria-label={collapsed ? 'Expand exercise' : 'Collapse exercise'}
+        >
+          <span className={`text-text-sec text-xs transition-transform duration-200 ${collapsed ? '-rotate-90' : ''}`}>▼</span>
+          <h3 className="text-xs font-semibold text-text-sec uppercase tracking-wider group-hover:text-text transition-colors">Exercise</h3>
+          {collapsed && exercises.length > 0 && (
+            <span className="text-xs text-text-sec tabular-nums">
+              · {exercises.length} {exercises.length === 1 ? 'entry' : 'entries'}
+              {totalKcal > 0 ? ` · ${Math.round(totalKcal)} kcal` : ''}
+            </span>
+          )}
+        </button>
+        {!collapsed && (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={openPlanPicker}
+              disabled={loggingPlan}
+              className="text-xs px-3 py-1 rounded-lg border border-border text-text-sec hover:border-accent hover:text-accent cursor-pointer transition-colors disabled:opacity-40"
+            >
+              {loggingPlan ? '…' : t('exercise.plans.logFromPlan')}
+            </button>
+            <button
+              onClick={() => { resetForm(); setOpen(true); }}
+              className="text-xs px-3 py-1 rounded-lg border border-border text-text-sec hover:border-accent hover:text-accent cursor-pointer transition-colors"
+            >
+              + Add
+            </button>
+          </div>
+        )}
       </div>
 
-      {exercises.length === 0 && !open && (
+      {!collapsed && exercises.length === 0 && !open && (
         <EmptyState message={t('exercise.empty') ?? 'No exercise logged today.'} className="py-2" />
       )}
 
-      {exercises.length > 0 && (
+      {!collapsed && exercises.length > 0 && (
         <div className="flex flex-col gap-1.5 mb-3">
           {exercises.map(ex => (
             <div key={ex.id} className="flex items-center gap-2 text-sm">
@@ -173,7 +204,7 @@ export default function ExerciseSection({ date, onCaloriesChange }: Props) {
         </div>
       )}
 
-      {open && (
+      {!collapsed && open && (
         <div className="border-t border-border pt-3 mt-2 space-y-3">
           <div className="space-y-1">
             <label className="text-xs text-text-sec">Exercise</label>

@@ -346,6 +346,7 @@ function initDb() {
     'ALTER TABLE foods ADD COLUMN display_name TEXT',
     "ALTER TABLE supplement_plan_items ADD COLUMN time_of_day TEXT NOT NULL DEFAULT 'breakfast'",
     "ALTER TABLE daily_energy ADD COLUMN steps INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE daily_energy ADD COLUMN distance_km REAL NOT NULL DEFAULT 0",
     "ALTER TABLE foods ADD COLUMN sugar REAL",
     "ALTER TABLE foods ADD COLUMN saturated_fat REAL",
     "ALTER TABLE foods ADD COLUMN sodium_mg REAL",

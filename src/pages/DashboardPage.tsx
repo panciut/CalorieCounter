@@ -61,7 +61,6 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
   const [foods, setFoods]           = useState<Food[]>([]);
   const [recipes, setRecipes]       = useState<Recipe[]>([]);
   const [frequent, setFrequent]     = useState<FrequentFood[]>([]);
-  const [favorites, setFavorites]   = useState<Food[]>([]);
   const [waterTotal, setWaterTotal] = useState(0);
   const [waterEntries, setWaterEntries] = useState<WaterEntry[]>([]);
   const [supplements, setSupplements] = useState<SupplementDay[]>([]);
@@ -72,6 +71,7 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
   const [activeKcal, setActiveKcal]   = useState('');
   const [extraKcal, setExtraKcal]     = useState('');
   const [steps, setSteps]             = useState('');
+  const [distanceKm, setDistanceKm]   = useState('');
   const [restingFromYest, setRestingFromYest] = useState(false);
   const noteSaveTimer = useRef<ReturnType<typeof setTimeout>|null>(null);
 
@@ -101,9 +101,8 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
   const [waterExpanded, setWaterExpanded] = useState(false);
 
   const load = useCallback(async () => {
-    const [ent, fav, fds, wd, rcs, nd, freq] = await Promise.all([
+    const [ent, fds, wd, rcs, nd, freq] = await Promise.all([
       api.log.getDay(dateStr),
-      api.foods.getFavorites(),
       api.foods.getAll(),
       api.water.getDay(dateStr),
       api.recipes.getAll(),
@@ -111,7 +110,6 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
       api.foods.getFrequent(10),
     ]);
     setEntries(ent);
-    setFavorites(fav);
     setFoods(fds);
     setWaterTotal(wd.total_ml);
     setWaterEntries(wd.entries);
@@ -128,11 +126,13 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
     api.supplements.getDay(dateStr).then(setSupplements);
     // Load Apple Watch energy for this date
     api.dailyEnergy.get(dateStr).then((rec: DailyEnergy) => {
-      if (rec.resting_kcal > 0 || rec.active_kcal > 0 || rec.extra_kcal > 0 || (rec.steps ?? 0) > 0) {
+      const km = rec.distance_km ?? 0;
+      if (rec.resting_kcal > 0 || rec.active_kcal > 0 || rec.extra_kcal > 0 || (rec.steps ?? 0) > 0 || km > 0) {
         setRestingKcal(rec.resting_kcal > 0 ? String(rec.resting_kcal) : '');
         setActiveKcal(rec.active_kcal > 0 ? String(rec.active_kcal) : '');
         setExtraKcal(rec.extra_kcal > 0 ? String(rec.extra_kcal) : '');
         setSteps((rec.steps ?? 0) > 0 ? String(rec.steps) : '');
+        setDistanceKm(km > 0 ? String(km) : '');
         setRestingFromYest(false);
       } else {
         // No record for today — carry forward resting from yesterday
@@ -148,6 +148,7 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
         setActiveKcal('');
         setExtraKcal('');
         setSteps('');
+        setDistanceKm('');
       }
     });
   }, [load, dateStr]);
@@ -319,11 +320,10 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
     const active    = parseFloat(activeKcal)  || 0;
     const extra     = parseFloat(extraKcal)   || 0;
     const stepCount = parseInt(steps, 10)     || 0;
-    api.dailyEnergy.set({ date: dateStr, resting_kcal: resting, active_kcal: active, extra_kcal: extra, steps: stepCount });
+    const km        = parseFloat(distanceKm)  || 0;
+    api.dailyEnergy.set({ date: dateStr, resting_kcal: resting, active_kcal: active, extra_kcal: extra, steps: stepCount, distance_km: km });
     setRestingFromYest(false);
   }
-
-  // ── Quick-log favorites/frequent ─────────────────────────────────────────────
 
   async function handleCopyDay() {
     const md = buildDayMarkdown({
@@ -343,19 +343,6 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
 
   function selectPantry(id: number) {
     setContextPantryId(id);
-  }
-
-  async function quickLog(food: Food) {
-    // Non-bulk foods log by pack size (smallest available); bulk foods fall
-    // back to piece_grams, then 100g.
-    const smallestPack = (food.packages ?? []).reduce<number | null>(
-      (min, p) => (min == null || p.grams < min ? p.grams : min), null,
-    );
-    const grams = (food.is_bulk !== 1 && smallestPack != null)
-      ? smallestPack
-      : (food.piece_grams || 100);
-    await api.log.add({ food_id: food.id, grams, meal: 'AfternoonSnack', date: dateStr, status: logStatus, pantry_id: logPantryId });
-    load();
   }
 
   // ── Render ───────────────────────────────────────────────────────────────────
@@ -513,8 +500,8 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
             </div>
           )}
 
-          {/* Inputs */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          {/* Inputs — kcal row */}
+          <div className="grid grid-cols-3 gap-2">
             <div className="flex flex-col gap-1">
               <label className="text-xs text-text-sec text-center">{t('energy.resting')}</label>
               <input
@@ -552,6 +539,9 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
                 className={numInputCls}
               />
             </div>
+          </div>
+          {/* Inputs — activity row */}
+          <div className="grid grid-cols-2 gap-2">
             <div className="flex flex-col gap-1">
               <label className="text-xs text-text-sec text-center">{t('energy.steps')}</label>
               <input
@@ -559,6 +549,18 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
                 inputMode="numeric"
                 value={steps}
                 onChange={e => setSteps(e.target.value.replace(/[^0-9]/g, ''))}
+                onBlur={handleEnergySave}
+                placeholder="0"
+                className={numInputCls}
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-text-sec text-center">{t('energy.km')}</label>
+              <input
+                type="text"
+                inputMode="decimal"
+                value={distanceKm}
+                onChange={e => setDistanceKm(e.target.value.replace(/[^0-9.,]/g, '').replace(',', '.'))}
                 onBlur={handleEnergySave}
                 placeholder="0"
                 className={numInputCls}
@@ -640,32 +642,6 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
 
       {/* Exercise */}
       <ExerciseSection date={dateStr} onCaloriesChange={() => {}} />
-
-      {/* Favorites + frequent */}
-      {favorites.length > 0 && (
-        <div>
-          <h3 className="text-xs font-semibold text-text-sec uppercase tracking-wider mb-2">⭐ Favorites</h3>
-          <div className="flex flex-wrap gap-2">
-            {favorites.map(f=>(
-              <button key={f.id} onClick={()=>quickLog(f)} className="text-sm px-3 py-1.5 rounded-lg bg-card border border-border text-text-sec hover:border-accent hover:text-accent cursor-pointer transition-colors">
-                {f.name}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-      {frequent.length > 0 && (
-        <div>
-          <h3 className="text-xs font-semibold text-text-sec uppercase tracking-wider mb-2">{t('dash.frequent')}</h3>
-          <div className="flex flex-wrap gap-2">
-            {frequent.slice(0,8).map(f=>(
-              <button key={f.id} onClick={()=>quickLog(f)} title={`${f.use_count}× · ${f.calories} kcal/100g`} className="text-sm px-3 py-1.5 rounded-lg bg-card border border-border text-text-sec hover:border-accent hover:text-accent cursor-pointer transition-colors">
-                {f.name}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Log food section */}
       <div className="bg-card border border-border rounded-xl p-4 flex flex-col gap-3">

@@ -41,25 +41,33 @@ const ICONS: Record<PageName, string> = {
 
 // ── Nav item definitions ───────────────────────────────────────────────────────
 
-interface NavItem { page: PageName; labelKey: string; }
+type NavGroup = 'track' | 'plan' | 'health' | 'system';
+interface NavItem { page: PageName; labelKey: string; group: NavGroup; }
 
 const DEFAULT_ORDER: NavItem[] = [
-  { page: 'dashboard',     labelKey: 'nav.today' },
-  { page: 'foods',         labelKey: 'nav.foods' },
-  { page: 'pantry',        labelKey: 'nav.pantry' },
-  { page: 'recipes',       labelKey: 'nav.recipes' },
-  { page: 'week',          labelKey: 'nav.week' },
-  { page: 'history',       labelKey: 'nav.history' },
-  { page: 'supplements',   labelKey: 'nav.supplements' },
-  { page: 'net',           labelKey: 'nav.net' },
-  { page: 'exercise',      labelKey: 'nav.exercise' },
-  { page: 'measurements',  labelKey: 'nav.measurements' },
-  { page: 'compare',       labelKey: 'nav.compare' },
-  { page: 'weight',        labelKey: 'nav.body' },
-  { page: 'goals',         labelKey: 'nav.goals' },
-  { page: 'notifications', labelKey: 'nav.notifications' },
-  { page: 'data',          labelKey: 'nav.data' },
-  { page: 'settings',      labelKey: 'nav.settings' },
+  { page: 'dashboard',     labelKey: 'nav.today',         group: 'track' },
+  { page: 'foods',         labelKey: 'nav.foods',         group: 'track' },
+  { page: 'pantry',        labelKey: 'nav.pantry',        group: 'track' },
+  { page: 'recipes',       labelKey: 'nav.recipes',       group: 'track' },
+  { page: 'week',          labelKey: 'nav.week',          group: 'plan' },
+  { page: 'history',       labelKey: 'nav.history',       group: 'plan' },
+  { page: 'net',           labelKey: 'nav.net',           group: 'plan' },
+  { page: 'compare',       labelKey: 'nav.compare',       group: 'plan' },
+  { page: 'supplements',   labelKey: 'nav.supplements',   group: 'health' },
+  { page: 'exercise',      labelKey: 'nav.exercise',      group: 'health' },
+  { page: 'measurements',  labelKey: 'nav.measurements',  group: 'health' },
+  { page: 'weight',        labelKey: 'nav.body',          group: 'health' },
+  { page: 'goals',         labelKey: 'nav.goals',         group: 'health' },
+  { page: 'notifications', labelKey: 'nav.notifications', group: 'system' },
+  { page: 'data',          labelKey: 'nav.data',          group: 'system' },
+  { page: 'settings',      labelKey: 'nav.settings',      group: 'system' },
+];
+
+const GROUPS: { id: NavGroup; labelKey: string }[] = [
+  { id: 'track',  labelKey: 'nav.group.track' },
+  { id: 'plan',   labelKey: 'nav.group.plan' },
+  { id: 'health', labelKey: 'nav.group.health' },
+  { id: 'system', labelKey: 'nav.group.system' },
 ];
 
 const STORAGE_KEY = 'nav_order';
@@ -223,10 +231,10 @@ export default function Nav({ activePage }: NavProps) {
       </div>
 
       {/* Nav items */}
-      <div className="flex flex-col gap-0.5">
-        {visibleItems.map(({ page, labelKey }, i) => (
-          editing ? (
-            // ── Edit mode: draggable row with hide toggle ─────────────────
+      {editing ? (
+        // ── Edit mode: flat draggable list ─────────────────────────────
+        <div className="flex flex-col gap-0.5">
+          {visibleItems.map(({ page, labelKey }, i) => (
             <div
               key={page}
               draggable
@@ -256,25 +264,40 @@ export default function Nav({ activePage }: NavProps) {
                 </button>
               )}
             </div>
-          ) : (
-            // ── Normal mode: nav button ───────────────────────────────────
-            <button
-              key={page}
-              onClick={() => page === 'week' ? navigate('week', { weekStart: getThisMonday() }) : navigate(page)}
-              className={[
-                'flex items-center gap-2.5 px-4 py-2 text-sm text-left w-full',
-                'transition-colors duration-150 cursor-pointer',
-                activePage === page
-                  ? 'bg-accent/15 text-accent font-medium'
-                  : 'text-text-sec hover:bg-card-hover hover:text-text',
-              ].join(' ')}
-            >
-              <Icon d={ICONS[page] ?? ICONS.settings} size={16} />
-              <span>{t(labelKey)}</span>
-            </button>
-          )
-        ))}
-      </div>
+          ))}
+        </div>
+      ) : (
+        // ── Normal mode: grouped sections ─────────────────────────────
+        <div className="flex flex-col gap-3">
+          {GROUPS.map(g => {
+            const itemsInGroup = visibleItems.filter(i => i.group === g.id);
+            if (itemsInGroup.length === 0) return null;
+            return (
+              <div key={g.id} className="flex flex-col gap-0.5">
+                <div className="px-4 pt-1 pb-1 text-[10px] font-semibold tracking-[0.14em] uppercase text-text-sec/70 select-none">
+                  {t(g.labelKey)}
+                </div>
+                {itemsInGroup.map(({ page, labelKey }) => (
+                  <button
+                    key={page}
+                    onClick={() => page === 'week' ? navigate('week', { weekStart: getThisMonday() }) : navigate(page)}
+                    className={[
+                      'flex items-center gap-2.5 px-4 py-2 text-sm text-left w-full',
+                      'transition-colors duration-150 cursor-pointer',
+                      activePage === page
+                        ? 'bg-accent/15 text-accent font-medium'
+                        : 'text-text-sec hover:bg-card-hover hover:text-text',
+                    ].join(' ')}
+                  >
+                    <Icon d={ICONS[page] ?? ICONS.settings} size={16} />
+                    <span>{t(labelKey)}</span>
+                  </button>
+                ))}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </nav>
   );
 }

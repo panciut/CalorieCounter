@@ -504,6 +504,7 @@ export interface DailyEnergy {
   active_kcal: number;
   extra_kcal: number;
   steps: number;
+  distance_km: number;
 }
 
 export interface CalorieTrendPoint {
