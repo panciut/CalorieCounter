@@ -14,6 +14,7 @@ import Modal from '../components/Modal';
 import { today, fmtDateWithWeekday, addDays } from '../lib/dateUtil';
 import { buildDayMarkdown, copyToClipboard } from '../lib/exportText';
 import ExerciseSection from '../components/ExerciseSection';
+import CollapsibleSection from '../components/dashboard/CollapsibleSection';
 import {
   SUPPLEMENT_TIME_ORDER,
   type LogEntry, type Food, type Recipe, type RecipeIngredient, type Meal,
@@ -375,7 +376,7 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
             className="text-text-sec hover:text-accent border border-border hover:border-accent/50 rounded-lg w-7 h-7 flex items-center justify-center cursor-pointer transition-colors"
             title="Previous day"
           >‹</button>
-          <h1 className="text-xl font-bold text-text">{fmtDateWithWeekday(dateStr)}</h1>
+          <h1 className="text-xl font-bold text-text text-center w-[230px] tabular-nums">{fmtDateWithWeekday(dateStr)}</h1>
           <button
             onClick={() => setDateStr(addDays(dateStr, 1))}
             className="text-text-sec hover:text-accent border border-border hover:border-accent/50 rounded-lg w-7 h-7 flex items-center justify-center cursor-pointer transition-colors"
@@ -467,12 +468,13 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
       {/* Energy (Apple Watch) + Supplements */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {/* Energy card */}
-        <div className="bg-card border border-border rounded-xl p-4 flex flex-col gap-3">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xs font-semibold text-text-sec uppercase tracking-wider">{t('energy.title')}</h3>
-            <span className="text-xs text-text-sec/60">{t('energy.appleWatch')}</span>
-          </div>
-
+        <CollapsibleSection
+          storageKey="dashboard.energy.collapsed"
+          title={t('energy.title')}
+          subtitle={t('energy.appleWatch')}
+          summary={hasEnergyData ? `${netKcal > 0 ? '+' : ''}${netKcal} kcal ${t('energy.net')}${stepCount > 0 ? ` · ${stepCount.toLocaleString()} ${t('energy.steps').toLowerCase()}` : ''}` : '—'}
+        >
+        <div className="flex flex-col gap-3">
           {/* Net display */}
           <div className="flex items-baseline gap-2">
             <span className={`text-2xl font-bold tabular-nums ${
@@ -574,11 +576,17 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
             </div>
           </div>
         </div>
+        </CollapsibleSection>
 
         {/* Supplements */}
-        {supplements.length > 0 && (
-          <div className="bg-card border border-border rounded-xl p-4">
-            <h3 className="text-xs font-semibold text-text-sec uppercase tracking-wider mb-2">{t('suppl.dashTitle')}</h3>
+        {supplements.length > 0 && (() => {
+          const totalTaken = supplements.reduce((s, x) => s + (x.taken >= x.qty ? 1 : 0), 0);
+          return (
+          <CollapsibleSection
+            storageKey="dashboard.supplements.collapsed"
+            title={t('suppl.dashTitle')}
+            summary={`${totalTaken}/${supplements.length} taken`}
+          >
             <div className="flex flex-col gap-3">
               {SUPPLEMENT_TIME_ORDER.map(slot => {
                 const group = supplements.filter(s => (s.time_of_day ?? 'breakfast') === slot);
@@ -607,14 +615,18 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
                 );
               })}
             </div>
-          </div>
-        )}
+          </CollapsibleSection>
+          );
+        })()}
       </div>
 
       {/* Water */}
-      <div className="bg-card border border-border rounded-xl p-4">
-        <div className="flex items-center justify-between mb-2">
-          <h3 className="text-xs font-semibold text-text-sec uppercase tracking-wider">{t('dash.water')}</h3>
+      <CollapsibleSection
+        storageKey="dashboard.water.collapsed"
+        title={t('dash.water')}
+        summary={`${Math.round(waterTotal)} / ${waterGoal} ml (${waterPct}%)`}
+      >
+        <div className="flex items-center justify-end mb-2">
           <span className="text-xs text-text-sec tabular-nums">{Math.round(waterTotal)} / {waterGoal} ml</span>
         </div>
         <div className="w-full h-2 rounded-full mb-3" style={{ background: 'var(--border)' }}>
@@ -644,7 +656,7 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
             ))}
           </div>
         )}
-      </div>
+      </CollapsibleSection>
 
       {/* Exercise */}
       <ExerciseSection date={dateStr} onCaloriesChange={() => {}} />

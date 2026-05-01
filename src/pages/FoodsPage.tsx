@@ -8,6 +8,7 @@ import Modal from '../components/Modal';
 import ConfirmDialog from '../components/ConfirmDialog';
 import FoodSearch from '../components/FoodSearch';
 import type { SearchItem } from '../components/FoodSearch';
+import CollapsibleSection from '../components/dashboard/CollapsibleSection';
 import OffSuggestions from '../components/OffSuggestions';
 import FoodMatchModal, { type Candidate } from '../components/FoodMatchModal';
 import { checkMacroConsistency } from '../lib/macroCheck';
@@ -87,9 +88,44 @@ interface FormFieldsProps {
   unit?: 'sodium' | 'salt';
 }
 
+// Per-macro accent color used for the dot beside each label
+const MACRO_DOT: Record<string, string> = {
+  calories:    'var(--accent)',
+  fat:         'var(--macro-fat)',
+  carbs:       'var(--macro-carbs)',
+  fiber:       'var(--macro-fiber)',
+  protein:     'var(--macro-protein)',
+  piece_grams: 'var(--text-sec)',
+};
+
+function Switch({ checked, onChange, label, title }: { checked: boolean; onChange: (v: boolean) => void; label: string; title?: string }) {
+  return (
+    <label
+      title={title}
+      className="inline-flex items-center gap-2 text-xs text-text-sec cursor-pointer select-none"
+    >
+      <span
+        role="switch"
+        aria-checked={checked}
+        onClick={() => onChange(!checked)}
+        className={`relative w-8 h-[18px] rounded-full transition-colors duration-300 shrink-0 border ${
+          checked ? 'bg-accent border-accent' : 'bg-bg border-border'
+        }`}
+      >
+        <span
+          className="absolute top-[1px] w-3.5 h-3.5 rounded-full bg-white shadow-sm transition-[left] duration-300"
+          style={{ left: checked ? '15px' : '1px' }}
+        />
+      </span>
+      {label}
+    </label>
+  );
+}
+
 function FormFields({ form, patch, trackExtra = false, unit = 'sodium' }: FormFieldsProps) {
   const { t } = useT();
-  const FIELD_CLS = 'bg-bg border border-border rounded-lg px-2 py-1.5 text-text text-sm outline-none focus:border-accent w-full';
+  const FIELD_CLS = 'bg-bg border border-border rounded-lg px-2 py-1.5 text-text text-sm outline-none focus:border-accent w-full text-center font-semibold tabular-nums';
+  const LABEL_CLS = 'flex items-center gap-1.5 text-[10px] font-semibold tracking-[0.12em] uppercase text-text-sec/80';
   const macros: { key: keyof FoodFormState; label: string }[] = [
     { key: 'calories', label: 'kcal' },
     { key: 'fat',      label: t('th.fat') },
@@ -99,43 +135,47 @@ function FormFields({ form, patch, trackExtra = false, unit = 'sodium' }: FormFi
     { key: 'piece_grams', label: t('foods.piecePlaceholder') },
   ];
   return (
-    <div className="flex flex-col gap-2">
-      <input type="text" value={form.name} onChange={e => patch({ name: e.target.value })} placeholder={t('foods.namePlaceholder')} className={FIELD_CLS} />
+    <div className="flex flex-col gap-3">
+      <input
+        type="text"
+        value={form.name}
+        onChange={e => patch({ name: e.target.value })}
+        placeholder={t('foods.namePlaceholder')}
+        className="bg-transparent border-0 border-b border-border focus:border-accent outline-none text-text text-lg italic pb-1.5 w-full"
+        style={{ fontFamily: 'var(--font-family-serif)' }}
+      />
       <div className="grid grid-cols-6 gap-2">
         {macros.map(({ key, label }) => (
-          <div key={key} className="flex flex-col gap-0.5">
-            <label className="text-xs text-text-sec">{label}</label>
+          <div key={key} className="flex flex-col gap-1 min-w-0">
+            <span className={LABEL_CLS}>
+              <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: MACRO_DOT[key] }} />
+              <span className="truncate">{label}</span>
+            </span>
             <input type="text" inputMode="decimal" value={(form as unknown as Record<string,string>)[key]} onChange={e => patch({ [key]: e.target.value })} placeholder="0" className={FIELD_CLS} />
           </div>
         ))}
       </div>
       {trackExtra && (
         <div className="grid grid-cols-3 gap-2">
-          <div className="flex flex-col gap-0.5">
-            <label className="text-xs text-text-sec">{t('nutrition.sugar')} (g)</label>
+          <div className="flex flex-col gap-1">
+            <span className={LABEL_CLS}><span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: 'var(--macro-carbs)' }} />{t('nutrition.sugar')} (g)</span>
             <input type="text" inputMode="decimal" value={form.sugar} onChange={e => patch({ sugar: e.target.value })} placeholder="0" className={FIELD_CLS} />
           </div>
-          <div className="flex flex-col gap-0.5">
-            <label className="text-xs text-text-sec">{t('nutrition.saturatedFat')} (g)</label>
+          <div className="flex flex-col gap-1">
+            <span className={LABEL_CLS}><span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: 'var(--macro-fat)' }} />{t('nutrition.saturatedFat')} (g)</span>
             <input type="text" inputMode="decimal" value={form.saturated_fat} onChange={e => patch({ saturated_fat: e.target.value })} placeholder="0" className={FIELD_CLS} />
           </div>
-          <div className="flex flex-col gap-0.5">
-            <label className="text-xs text-text-sec">
+          <div className="flex flex-col gap-1">
+            <span className={LABEL_CLS}><span className="w-1.5 h-1.5 rounded-full shrink-0 bg-text-sec/60" />
               {unit === 'salt' ? `${t('nutrition.salt')} (g)` : `${t('nutrition.sodium')} (mg)`}
-            </label>
+            </span>
             <input type="text" inputMode="decimal" value={form.sodium_or_salt} onChange={e => patch({ sodium_or_salt: e.target.value })} placeholder="0" className={FIELD_CLS} />
           </div>
         </div>
       )}
-      <div className="flex items-center gap-4">
-        <label className="flex items-center gap-2 text-sm text-text-sec cursor-pointer">
-          <input type="checkbox" checked={form.is_liquid} onChange={e => patch({ is_liquid: e.target.checked })} />
-          {t('foods.liquid')}
-        </label>
-        <label className="flex items-center gap-2 text-sm text-text-sec cursor-pointer" title={t('foods.bulkHelp')}>
-          <input type="checkbox" checked={form.is_bulk} onChange={e => patch({ is_bulk: e.target.checked, piece_grams: e.target.checked ? '' : form.piece_grams })} />
-          {t('foods.bulk')}
-        </label>
+      <div className="flex items-center gap-5 pt-1">
+        <Switch checked={form.is_liquid} onChange={v => patch({ is_liquid: v })} label={`${t('foods.liquid')} 💧`} />
+        <Switch checked={form.is_bulk}   onChange={v => patch({ is_bulk: v, piece_grams: v ? '' : form.piece_grams })} label={`${t('foods.bulk')} ⚖️`} title={t('foods.bulkHelp')} />
       </div>
     </div>
   );
@@ -164,7 +204,7 @@ export default function FoodsPage() {
   const [barcodeInput, setBarcodeInput] = useState('');
   const [barcodeStatus, setBarcodeStatus] = useState<'found'|'notFound'|null>(null);
   const [scannerOpen, setScannerOpen] = useState(false);
-  const [formOpen, setFormOpen] = useState(true);
+  const [formOpenSignal, setFormOpenSignal] = useState(0);
   const [detailMode, setDetailMode] = useState(false);
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [deletePackId, setDeletePackId] = useState<number | null>(null);
@@ -232,7 +272,7 @@ export default function FoodsPage() {
   function applyBarcodeResult(r: BarcodeResult, barcode: string) {
     setAddForm(barcodeToForm(r, barcode, unit));
     setBarcodeStatus('found');
-    setFormOpen(true);
+    setFormOpenSignal(s => s + 1);
     const allBlank = addPacks.every(p => !p.grams);
     if (r.pack_grams && allBlank) {
       const g = Math.round(r.pack_grams);
@@ -403,20 +443,14 @@ export default function FoodsPage() {
     <div className="p-6 max-w-6xl mx-auto w-full flex flex-col gap-4 h-full overflow-hidden">
 
       {/* ── Collapsible add form ──────────────────────────────────────────── */}
-      <div className="bg-card border border-border rounded-xl shrink-0">
-        {/* Header — always visible */}
-        <button
-          type="button"
-          onClick={() => setFormOpen(v => !v)}
-          className="w-full flex items-center gap-2 px-4 py-3 text-left cursor-pointer hover:bg-card-hover rounded-xl transition-colors"
+      <div className="shrink-0">
+        <CollapsibleSection
+          storageKey="foods.addForm.collapsed"
+          title={t('foods.addTitle')}
+          subtitle={t('foods.valuesPerLabel')}
+          openSignal={formOpenSignal}
         >
-          <span className="text-xs text-text-sec select-none">{formOpen ? '▴' : '▾'}</span>
-          <span className="text-sm font-semibold text-text">{t('foods.addTitle')}</span>
-          <span className="text-xs text-text-sec ml-1">{t('foods.valuesPerLabel')}</span>
-        </button>
-
-        {formOpen && (
-          <div className="px-4 pb-4 flex flex-col gap-3 border-t border-border pt-3">
+          <div className="flex flex-col gap-3">
             {/* Barcode row */}
             <div className="flex items-center gap-2">
               <span className="text-xs text-text-sec shrink-0">{t('barcode.addByBarcode')}:</span>
@@ -606,19 +640,34 @@ export default function FoodsPage() {
               <button type="button" onClick={() => handleAdd()} disabled={!addForm.name.trim()||!addForm.calories} className="px-5 py-2 rounded-lg bg-accent text-white text-sm font-medium hover:opacity-90 disabled:opacity-40 cursor-pointer">{t('common.add')}</button>
             </div>
           </div>
-        )}
+        </CollapsibleSection>
       </div>
 
-      {/* ── Tab bar ───────────────────────────────────────────────────────── */}
-      <div className="flex gap-1 border-b border-border shrink-0">
-        <button
-          onClick={() => setTab('foods')}
-          className={`px-5 py-2.5 text-sm font-medium transition-colors cursor-pointer border-b-2 -mb-px ${tab === 'foods' ? 'border-accent text-accent' : 'border-transparent text-text-sec hover:text-text'}`}
-        >{t('foods.tabFoods')}</button>
-        <button
-          onClick={() => setTab('packs')}
-          className={`px-5 py-2.5 text-sm font-medium transition-colors cursor-pointer border-b-2 -mb-px ${tab === 'packs' ? 'border-accent text-accent' : 'border-transparent text-text-sec hover:text-text'}`}
-        >{t('foods.tabPacks')}</button>
+      {/* ── Page eyebrow + serif title + tab pill ─────────────────────────── */}
+      <div className="flex items-center justify-between gap-4 shrink-0">
+        <div>
+          <div className="text-[10px] font-semibold tracking-[0.18em] uppercase text-accent">{t('foods.eyebrow')}</div>
+          <div className="text-[22px] italic leading-tight text-text" style={{ fontFamily: 'var(--font-family-serif)' }}>
+            {t('foods.title')}
+          </div>
+        </div>
+        <div className="relative grid grid-cols-2 p-1 bg-bg border border-border rounded-full min-w-[220px]">
+          <span
+            className="absolute top-1 bottom-1 bg-card border border-border rounded-full shadow-sm transition-[left] duration-300"
+            style={{ left: tab === 'foods' ? '4px' : 'calc(50% + 0px)', width: 'calc(50% - 4px)' }}
+          />
+          {(['foods', 'packs'] as FoodsTab[]).map(id => (
+            <button
+              key={id}
+              onClick={() => setTab(id)}
+              className={`relative z-[1] py-1.5 px-4 text-xs font-semibold tracking-wider cursor-pointer transition-colors ${
+                tab === id ? 'text-text' : 'text-text-sec hover:text-text'
+              }`}
+            >
+              {id === 'foods' ? t('foods.tabFoods') : t('foods.tabPacks')}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* ── Foods tab ─────────────────────────────────────────────────────── */}
@@ -648,11 +697,11 @@ export default function FoodsPage() {
                 <tr className="text-text-sec text-xs uppercase tracking-wider border-b border-border">
                   <th className="px-2 py-3 w-8"></th>
                   <th className="px-3 py-3 text-left">{t('th.food')}</th>
-                  <th className="px-3 py-3 text-right">{t('th.kcal')}</th>
-                  <th className="px-3 py-3 text-right">{t('th.fat')}</th>
-                  <th className="px-3 py-3 text-right">{t('th.carbs')}</th>
-                  <th className="px-3 py-3 text-right">{t('th.fiber')}</th>
-                  <th className="px-3 py-3 text-right">{t('th.protein')}</th>
+                  <th className="px-3 py-3 text-right"><span className="inline-flex items-center justify-end gap-1.5"><span className="w-1.5 h-1.5 rounded-full" style={{ background: MACRO_DOT.calories }} />{t('th.kcal')}</span></th>
+                  <th className="px-3 py-3 text-right"><span className="inline-flex items-center justify-end gap-1.5"><span className="w-1.5 h-1.5 rounded-full" style={{ background: MACRO_DOT.fat }} />{t('th.fat')}</span></th>
+                  <th className="px-3 py-3 text-right"><span className="inline-flex items-center justify-end gap-1.5"><span className="w-1.5 h-1.5 rounded-full" style={{ background: MACRO_DOT.carbs }} />{t('th.carbs')}</span></th>
+                  <th className="px-3 py-3 text-right"><span className="inline-flex items-center justify-end gap-1.5"><span className="w-1.5 h-1.5 rounded-full" style={{ background: MACRO_DOT.fiber }} />{t('th.fiber')}</span></th>
+                  <th className="px-3 py-3 text-right"><span className="inline-flex items-center justify-end gap-1.5"><span className="w-1.5 h-1.5 rounded-full" style={{ background: MACRO_DOT.protein }} />{t('th.protein')}</span></th>
                   <th className="px-3 py-3 text-right">{t('th.piece')}</th>
                   <th className="px-2 py-3 text-center">{t('th.liquid')}</th>
                   {detailMode && <th className="px-3 py-3 text-left">{t('th.barcode')}</th>}
