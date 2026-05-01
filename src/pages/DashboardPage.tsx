@@ -430,8 +430,14 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
           <button onClick={handleCopyDay} title={t('export.copyDay')} className="text-sm text-text-sec border border-border rounded-lg px-3 py-1.5 hover:border-accent/50 hover:text-text cursor-pointer transition-colors">
             📋 {t('export.copyDay')}
           </button>
-          <button onClick={()=>setSwapOpen(true)} title={t('dash.swapDays')} className="text-sm text-text-sec border border-border rounded-lg px-3 py-1.5 hover:border-accent/50 hover:text-text cursor-pointer transition-colors">
-            🔁 {t('dash.swapDays')}
+          <button onClick={()=>setSwapOpen(true)} title={t('dash.swapDays')} className="text-sm text-text-sec border border-border rounded-lg px-3 py-1.5 hover:border-accent/50 hover:text-text cursor-pointer transition-colors inline-flex items-center gap-1.5">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M8 3 4 7l4 4"/>
+              <path d="M4 7h16"/>
+              <path d="m16 21 4-4-4-4"/>
+              <path d="M20 17H4"/>
+            </svg>
+            {t('dash.swapDays')}
           </button>
           <button onClick={()=>setQuickFoodOpen(true)} className="text-sm text-accent border border-accent/40 rounded-lg px-3 py-1.5 hover:bg-accent/10 cursor-pointer transition-colors">
             {t('dash.quickAdd')}
@@ -858,9 +864,15 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
             <button
               onClick={handleSwapLunchDinner}
               title={t('dash.swapLunchDinner')}
-              className="text-xs text-text-sec border border-border rounded-lg px-2 py-1 hover:border-accent/50 hover:text-text cursor-pointer transition-colors"
+              className="text-xs text-text-sec border border-border rounded-lg px-2 py-1 hover:border-accent/50 hover:text-text cursor-pointer transition-colors inline-flex items-center gap-1.5"
             >
-              🔄 {t('dash.swapLunchDinner')}
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="m21 16-4 4-4-4"/>
+                <path d="M17 20V4"/>
+                <path d="m3 8 4-4 4 4"/>
+                <path d="M7 4v16"/>
+              </svg>
+              {t('dash.swapLunchDinner')}
             </button>
           )}
         </div>
