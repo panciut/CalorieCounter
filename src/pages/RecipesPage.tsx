@@ -11,6 +11,7 @@ import { useDeductionEvents } from '../hooks/useDeductionEvents';
 import { usePantry } from '../hooks/usePantry';
 import DeductionEventModal from '../components/DeductionEventModal';
 import Tabs from '../components/ui/Tabs';
+import PageHeader from '../components/ui/PageHeader';
 import PantryPicker from '../components/ui/PantryPicker';
 import ModalFooter from '../components/ui/ModalFooter';
 
@@ -1173,11 +1174,12 @@ function RecipeCreateModal({ foods, onClose, onCreate }: {
 type Tab = 'recipes' | 'bundles';
 
 export default function RecipesPage() {
+  const { t } = useT();
   const [activeTab, setActiveTab] = useState<Tab>('recipes');
 
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-5">
-      <h1 className="text-xl font-bold text-text">Recipes</h1>
+      <PageHeader eyebrow={t('eyebrow.recipes')} title={t('page.recipes')} />
 
       <Tabs<Tab>
         items={[{ id: 'recipes', label: 'Recipes' }, { id: 'bundles', label: 'Bundles' }]}

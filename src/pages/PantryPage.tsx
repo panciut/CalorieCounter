@@ -256,7 +256,12 @@ export default function PantryPage() {
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
       <div className="flex items-center gap-3 flex-wrap">
-        <h1 className="text-xl font-bold text-text flex-1">Pantry</h1>
+        <div className="flex-1">
+          <div className="text-[10px] font-semibold tracking-[0.18em] uppercase text-accent">{t('eyebrow.pantry')}</div>
+          <div className="text-[22px] italic leading-tight text-text" style={{ fontFamily: 'var(--font-family-serif)' }}>
+            {t('page.pantry')}
+          </div>
+        </div>
         {pantries.length > 1 && (
           <select
             value={activePantryId ?? ''}

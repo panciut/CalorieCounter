@@ -5,6 +5,7 @@ import { useToast } from "../components/Toast";
 import { calcMacroRanges } from "../lib/macroCalc";
 import { api } from "../api";
 import type { Settings, GoalType, TDEEResult, GoalSuggestion } from "../types";
+import PageHeader from "../components/ui/PageHeader";
 
 type MacroField = "protein" | "carbs" | "fat" | "fiber";
 
@@ -132,7 +133,7 @@ export default function GoalsPage() {
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
-      <h1 className="text-xl font-bold text-text">{t("settings.title")}</h1>
+      <PageHeader eyebrow={t("eyebrow.goals")} title={t("page.goals")} />
 
       {/* ── TDEE / Goal Intelligence ─────────────────────────────────────── */}
       <div className="bg-card rounded-xl p-4 space-y-3 border border-border">

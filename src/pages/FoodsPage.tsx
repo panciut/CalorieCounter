@@ -9,6 +9,8 @@ import ConfirmDialog from '../components/ConfirmDialog';
 import FoodSearch from '../components/FoodSearch';
 import type { SearchItem } from '../components/FoodSearch';
 import CollapsibleSection from '../components/dashboard/CollapsibleSection';
+import Tabs from '../components/ui/Tabs';
+import PageHeader from '../components/ui/PageHeader';
 import OffSuggestions from '../components/OffSuggestions';
 import FoodMatchModal, { type Candidate } from '../components/FoodMatchModal';
 import { checkMacroConsistency } from '../lib/macroCheck';
@@ -643,32 +645,18 @@ export default function FoodsPage() {
         </CollapsibleSection>
       </div>
 
-      {/* ── Page eyebrow + serif title + tab pill ─────────────────────────── */}
-      <div className="flex items-center justify-between gap-4 shrink-0">
-        <div>
-          <div className="text-[10px] font-semibold tracking-[0.18em] uppercase text-accent">{t('foods.eyebrow')}</div>
-          <div className="text-[22px] italic leading-tight text-text" style={{ fontFamily: 'var(--font-family-serif)' }}>
-            {t('foods.title')}
-          </div>
-        </div>
-        <div className="relative grid grid-cols-2 p-1 bg-bg border border-border rounded-full min-w-[220px]">
-          <span
-            className="absolute top-1 bottom-1 bg-card border border-border rounded-full shadow-sm transition-[left] duration-300"
-            style={{ left: tab === 'foods' ? '4px' : 'calc(50% + 0px)', width: 'calc(50% - 4px)' }}
-          />
-          {(['foods', 'packs'] as FoodsTab[]).map(id => (
-            <button
-              key={id}
-              onClick={() => setTab(id)}
-              className={`relative z-[1] py-1.5 px-4 text-xs font-semibold tracking-wider cursor-pointer transition-colors ${
-                tab === id ? 'text-text' : 'text-text-sec hover:text-text'
-              }`}
-            >
-              {id === 'foods' ? t('foods.tabFoods') : t('foods.tabPacks')}
-            </button>
-          ))}
-        </div>
-      </div>
+      {/* ── Page eyebrow + serif title ────────────────────────────────────── */}
+      <PageHeader eyebrow={t('foods.eyebrow')} title={t('foods.title')} className="shrink-0" />
+
+      {/* ── Tabs ──────────────────────────────────────────────────────────── */}
+      <Tabs<FoodsTab>
+        items={[
+          { id: 'foods', label: t('foods.tabFoods') },
+          { id: 'packs', label: t('foods.tabPacks') },
+        ]}
+        active={tab}
+        onChange={setTab}
+      />
 
       {/* ── Foods tab ─────────────────────────────────────────────────────── */}
       {tab === 'foods' && <div className="flex flex-col gap-3 flex-1 min-h-0">

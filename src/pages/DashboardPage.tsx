@@ -376,7 +376,17 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
             className="text-text-sec hover:text-accent border border-border hover:border-accent/50 rounded-lg w-7 h-7 flex items-center justify-center cursor-pointer transition-colors"
             title="Previous day"
           >‹</button>
-          <h1 className="text-xl font-bold text-text text-center w-[230px] tabular-nums">{fmtDateWithWeekday(dateStr)}</h1>
+          {(() => {
+            const parts = fmtDateWithWeekday(dateStr).split(' ');
+            const weekday = parts[0] ?? '';
+            const datePart = parts.slice(1).join(' ');
+            return (
+              <h1 className="text-xl font-bold text-text text-center w-[230px] tabular-nums leading-tight">
+                <span className="block">{weekday}</span>
+                <span className="block">{datePart}</span>
+              </h1>
+            );
+          })()}
           <button
             onClick={() => setDateStr(addDays(dateStr, 1))}
             className="text-text-sec hover:text-accent border border-border hover:border-accent/50 rounded-lg w-7 h-7 flex items-center justify-center cursor-pointer transition-colors"

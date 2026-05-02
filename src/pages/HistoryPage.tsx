@@ -6,6 +6,7 @@ import { useSettings } from '../hooks/useSettings';
 import { api } from '../api';
 import BarChartCard from '../components/BarChartCard';
 import Tabs from '../components/ui/Tabs';
+import PageHeader from '../components/ui/PageHeader';
 import { MACRO_COLORS } from '../lib/macroColors';
 import { formatShortDate, formatDMY, getMondayOf, today, addDays, buildDateRange, MS_PER_DAY } from '../lib/dateUtil';
 import { buildHistoryMarkdown, copyToClipboard } from '../lib/exportText';
@@ -192,12 +193,15 @@ export default function HistoryPage() {
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <h1 className="text-xl font-bold text-text">{t('history.title')}</h1>
-        <button onClick={handleCopy} className="text-sm text-text-sec border border-border rounded-lg px-3 py-1.5 hover:border-accent/50 hover:text-text cursor-pointer transition-colors">
-          📋 {t('export.copyHistory')}
-        </button>
-      </div>
+      <PageHeader
+        eyebrow={t('eyebrow.history')}
+        title={t('page.history')}
+        action={
+          <button onClick={handleCopy} className="text-sm text-text-sec border border-border rounded-lg px-3 py-1.5 hover:border-accent/50 hover:text-text cursor-pointer transition-colors">
+            📋 {t('export.copyHistory')}
+          </button>
+        }
+      />
 
       <Tabs<Tab>
         items={[{ id: 'weekly', label: 'Weekly' }, { id: 'analytics', label: 'Analytics' }]}

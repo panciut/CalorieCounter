@@ -5,6 +5,7 @@ import ConfirmDialog from '../components/ConfirmDialog';
 import Modal from '../components/Modal';
 import Tabs from '../components/ui/Tabs';
 import ModalFooter from '../components/ui/ModalFooter';
+import PageHeader from '../components/ui/PageHeader';
 import { api } from '../api';
 import {
   SUPPLEMENT_TIME_ORDER,
@@ -307,7 +308,7 @@ export default function SupplementsPage() {
 
   return (
     <div className="p-6 max-w-4xl mx-auto flex flex-col gap-0 h-full min-h-0">
-      <h1 className="text-xl font-bold text-text mb-4">{t('suppl.title')}</h1>
+      <PageHeader eyebrow={t('eyebrow.supplements')} title={t('page.supplements')} className="mb-4" />
 
       <Tabs<Tab>
         items={[{ id: 'plan', label: t('suppl.plan') }, { id: 'catalog', label: t('suppl.catalog') }]}

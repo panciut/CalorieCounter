@@ -6,6 +6,7 @@ import { api } from '../api';
 import FoodSearch from '../components/FoodSearch';
 import Tabs from '../components/ui/Tabs';
 import UnmatchedFoodsList from '../components/UnmatchedFoodsList';
+import PageHeader from '../components/ui/PageHeader';
 import { buildCompareMarkdown, copyToClipboard } from '../lib/exportText';
 import type { Food } from '../types';
 import type { SearchItem } from '../components/FoodSearch';
@@ -736,7 +737,7 @@ export default function ComparePage() {
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
-      <h1 className="text-xl font-bold text-text">{t('compare.title')}</h1>
+      <PageHeader eyebrow={t('eyebrow.compare')} title={t('page.compare')} />
       <Tabs items={tabItems} active={tab} onChange={setTab} />
 
       {tab === 'compare' && (

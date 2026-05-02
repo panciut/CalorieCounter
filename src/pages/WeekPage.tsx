@@ -146,14 +146,15 @@ export default function WeekPage({ weekStart }: WeekPageProps) {
         {t('week.backToHistory')}
       </button>
 
-      <div className="flex items-center justify-between gap-3 flex-wrap">
+      <div className="text-[10px] font-semibold tracking-[0.18em] uppercase text-accent">{t('eyebrow.week')}</div>
+      <div className="flex items-center justify-between gap-3 flex-wrap -mt-4">
         <div className="flex items-center gap-2">
           <button
             onClick={() => navigate('week', { weekStart: addDays(weekStart, -7) })}
             className="text-text-sec hover:text-accent border border-border hover:border-accent/50 rounded-lg w-7 h-7 flex items-center justify-center cursor-pointer transition-colors"
             title="Previous week"
           >‹</button>
-          <h1 className="text-xl font-bold text-text">
+          <h1 className="text-[22px] italic text-text text-center w-[260px] tabular-nums" style={{ fontFamily: 'var(--font-family-serif)' }}>
             {formatDMY(weekStart)} – {formatDMY(weekEnd)}
           </h1>
           <button

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { api } from '../api';
 import { useSettings } from '../hooks/useSettings';
+import { useT } from '../i18n/useT';
 import { formatShortDate, buildDateRange, today } from '../lib/dateUtil';
 import {
   ResponsiveContainer, LineChart, Line,
@@ -15,6 +16,7 @@ type Range = 7 | 30 | 90;
 
 export default function NetPage() {
   const { settings } = useSettings();
+  const { t } = useT();
   const [range, setRange]   = useState<Range>(30);
   const [data, setData]     = useState<CalorieTrendPoint[]>([]);
 
@@ -56,7 +58,8 @@ export default function NetPage() {
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
       <PageHeader
-        title="Net Calories"
+        eyebrow={t('eyebrow.net')}
+        title={t('page.net')}
         action={<RangePicker<Range> value={range} options={[7, 30, 90]} onChange={setRange} />}
       />
 

@@ -6,6 +6,7 @@ import WorkoutPlans from '../components/WorkoutPlans';
 import ExerciseWeekView from '../components/ExerciseWeekView';
 import { useT } from '../i18n/useT';
 import Tabs from '../components/ui/Tabs';
+import PageHeader from '../components/ui/PageHeader';
 
 type ExerciseTab = 'log' | 'library' | 'plans' | 'week' | 'equipment';
 
@@ -23,7 +24,7 @@ export default function ExercisePage() {
 
   return (
     <div className="p-6 max-w-6xl mx-auto flex flex-col gap-0 h-full min-h-0">
-      <h1 className="text-xl font-bold text-text mb-4">{t('exercise.title')}</h1>
+      <PageHeader eyebrow={t('eyebrow.exercise')} title={t('page.exercise')} className="mb-4" />
 
       <Tabs<ExerciseTab>
         items={tabItems}

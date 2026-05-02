@@ -4,6 +4,7 @@ import { useT } from '../i18n/useT';
 import { useNavigate } from '../hooks/useNavigate';
 import { useSettings } from '../hooks/useSettings';
 import { useNotifications } from '../hooks/useNotifications';
+import PageHeader from '../components/ui/PageHeader';
 import {
   renderNotificationTitle,
   renderNotificationBody,
@@ -117,9 +118,11 @@ export default function NotificationsPage() {
     <div className="flex-1 overflow-y-auto p-6">
       <div className="max-w-3xl mx-auto">
         {/* Header */}
-        <div className="flex items-center justify-between mb-4">
-          <h1 className="text-xl font-bold text-text">{t('notifications.title')}</h1>
-          {tab === 'active' && (
+        <PageHeader
+          eyebrow={t('eyebrow.notifications')}
+          title={t('page.notifications')}
+          className="mb-4"
+          action={tab === 'active' && (
             <div className="flex items-center gap-2">
               <button
                 type="button"
@@ -139,7 +142,7 @@ export default function NotificationsPage() {
               )}
             </div>
           )}
-        </div>
+        />
 
         {/* Tabs */}
         <div className="flex gap-1 border-b border-border mb-4">

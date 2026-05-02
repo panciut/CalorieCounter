@@ -3,6 +3,7 @@ import { useSettings } from '../hooks/useSettings';
 import { useT } from '../i18n/useT';
 import { api } from '../api';
 import SettingsSection from '../components/ui/SettingsSection';
+import PageHeader from '../components/ui/PageHeader';
 import type { PantryLocation, Scale } from '../types';
 
 export default function SettingsPage() {
@@ -42,7 +43,7 @@ export default function SettingsPage() {
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
-      <h1 className="text-xl font-bold text-text">{t('nav.settings')}</h1>
+      <PageHeader eyebrow={t('eyebrow.settings')} title={t('page.settings')} />
 
       <SettingsSection title={t('settings.language')} bare>
         <div className="flex gap-3">

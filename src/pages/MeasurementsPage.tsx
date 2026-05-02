@@ -6,6 +6,7 @@ import { today, fmtDate, formatShortDate, toLocalISO, MS_PER_DAY } from '../lib/
 import LineChartCard from '../components/LineChartCard';
 import RangePicker from '../components/ui/RangePicker';
 import EmptyState from '../components/ui/EmptyState';
+import PageHeader from '../components/ui/PageHeader';
 import type { Measurement } from '../types';
 
 type MeasurementField = 'waist' | 'chest' | 'arms' | 'thighs' | 'hips' | 'neck';
@@ -72,7 +73,7 @@ export default function MeasurementsPage() {
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
-      <h1 className="text-xl font-bold text-text">{t('meas.title')}</h1>
+      <PageHeader eyebrow={t('eyebrow.measurements')} title={t('page.measurements')} />
 
       {/* Add form */}
       <div className="bg-card border border-border rounded-xl p-4">

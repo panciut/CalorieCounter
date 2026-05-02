@@ -6,6 +6,7 @@ import { BulkRefillModal, BulkMatchModal } from '../components/BulkOffOpsModal';
 import OffLocalCard from '../components/OffLocalCard';
 import { copyToClipboard } from '../lib/exportText';
 import { useT } from '../i18n/useT';
+import PageHeader from '../components/ui/PageHeader';
 
 // ── Shared styles ─────────────────────────────────────────────────────────────
 
@@ -171,7 +172,7 @@ export default function DataPage() {
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
-      <h1 className="text-xl font-bold text-text">{t('data.title')}</h1>
+      <PageHeader eyebrow={t('eyebrow.data')} title={t('page.data')} />
 
       {/* ── Export ─────────────────────────────────────────────────────────── */}
       <section className="space-y-3">

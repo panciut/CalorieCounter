@@ -10,6 +10,7 @@ import LineChartCard from "../components/LineChartCard";
 import RangePicker from "../components/ui/RangePicker";
 import Tabs from "../components/ui/Tabs";
 import ModalFooter from "../components/ui/ModalFooter";
+import PageHeader from "../components/ui/PageHeader";
 import Modal from "../components/Modal";
 import type { WeightEntry, Scale } from "../types";
 
@@ -197,7 +198,7 @@ export default function WeightPage() {
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
-      <h1 className="text-xl font-bold text-text">Body</h1>
+      <PageHeader eyebrow={t('eyebrow.weight')} title={t('page.weight')} />
 
       <Tabs<Tab>
         items={[{ id: 'weight', label: 'Weight' }, { id: 'body', label: 'Composition' }]}
