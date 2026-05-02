@@ -14,10 +14,14 @@ function registerSettingsIpc() {
       tol_1: 5, tol_2: 10, tol_3: 20,
       pantry_enabled: 1, pantry_warn_days: 3, pantry_urgent_days: 1,
       shopping_prompt_enabled: 1, shopping_prompt_threshold: 1,
+      currency_symbol: '€',
+      notif_pantry_expiry: 1, notif_low_pantry: 1,
+      notif_missing_log: 1, notif_missing_energy: 1,
+      notif_weight: 1, notif_weight_warn_days: 3, notif_weight_urgent_days: 7,
       track_extra_nutrition: 0, extra_nutrition_unit: 'sodium', off_country: 'world',
       off_local_enabled: 0, off_local_last_synced: '', off_disable_online: 0,
     };
-    const stringKeys = new Set(['language', 'theme', 'extra_nutrition_unit', 'off_country', 'off_local_last_synced']);
+    const stringKeys = new Set(['language', 'theme', 'extra_nutrition_unit', 'off_country', 'off_local_last_synced', 'currency_symbol']);
     for (const { key, value } of getDb().prepare('SELECT key, value FROM settings').all()) {
       if (key in defaults) defaults[key] = stringKeys.has(key) ? value : parseFloat(value);
     }
