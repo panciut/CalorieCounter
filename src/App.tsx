@@ -14,6 +14,7 @@ import FoodsPage        from './pages/FoodsPage';
 import PantryPage       from './pages/PantryPage';
 import RecipesPage      from './pages/RecipesPage';
 import HistoryPage      from './pages/HistoryPage';
+import StatsPage        from './pages/StatsPage';
 import WeekPage         from './pages/WeekPage';
 import WeightPage       from './pages/WeightPage';
 import SupplementsPage  from './pages/SupplementsPage';
@@ -61,6 +62,7 @@ function AppInner() {
         {page === 'pantry'       && settings.pantry_enabled === 0 && <DashboardPage />}
         {page === 'recipes'      && <RecipesPage />}
         {page === 'history'      && <HistoryPage />}
+        {page === 'stats'        && <StatsPage />}
         {page === 'week'         && <WeekPage weekStart={param?.weekStart} />}
         {page === 'day'          && <DashboardPage initialDate={param?.date} fromWeek={param?.fromWeek} />}
         {page === 'weight'       && <WeightPage />}

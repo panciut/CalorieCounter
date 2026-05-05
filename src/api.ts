@@ -301,6 +301,7 @@ export const api = {
     caloriesTrend:  (days: number) => invoke<CalorieTrendPoint[]>('analytics:caloriesTrend', { days }),
     macroTrend:     (days: number) => invoke<MacroTrendPoint[]>('analytics:macroTrend', { days }),
     exerciseTrend:  (days: number) => invoke<ExerciseTrendPoint[]>('analytics:exerciseTrend', { days }),
+    stats:          (days: number | 'all') => invoke<import('./types').StatsBundle>('analytics:stats', { days }),
   },
 
   goals: {

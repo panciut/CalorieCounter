@@ -533,6 +533,158 @@ export interface ExerciseTrendPoint {
   total_burned: number;
 }
 
+// ── Stats bundle (analytics:stats) ───────────────────────────────────────────
+
+export interface StatsCompliance { hit: number; total: number; pct: number; }
+
+export interface StatsTopFood {
+  food_id: number;
+  name: string;
+  count: number;
+  total_g: number;
+  total_kcal: number;
+}
+
+export interface StatsMealSlice {
+  meal: Meal;
+  kcal: number;
+  avg_kcal: number;
+  pct: number;
+  items: number;
+}
+
+export interface StatsBodyPoint {
+  date: string;
+  weight: number;
+  fat_pct: number | null;
+  lean_kg: number | null;
+  muscle_mass: number | null;
+}
+
+export interface StatsHeatmapDay {
+  date: string;
+  kcal: number;
+  has_food: 0 | 1;
+  has_energy: 0 | 1;
+  has_weight: 0 | 1;
+  has_exercise: 0 | 1;
+}
+
+export interface StatsDow {
+  dow: number;
+  avg_kcal: number;
+  avg_burned: number;
+  avg_steps: number;
+  sessions: number;
+}
+
+export interface StatsBundle {
+  range: { days: number; start_date: string; end_date: string; is_all: boolean };
+  summary: {
+    days_with_food: number;
+    days_with_energy: number;
+    days_with_weight: number;
+    total_kcal_logged: number;
+    total_kcal_burned: number;
+    avg_kcal_per_day: number;
+    avg_protein_per_day: number;
+    avg_carbs_per_day: number;
+    avg_fat_per_day: number;
+    avg_fiber_per_day: number;
+    avg_kcal_out_per_day: number;
+    avg_net_per_day: number | null;
+    current_streak: number;
+    best_streak: number;
+  };
+  compliance: {
+    calories: StatsCompliance;
+    protein:  StatsCompliance;
+    carbs:    StatsCompliance;
+    fat:      StatsCompliance;
+    fiber:    StatsCompliance;
+  };
+  macroSplit: {
+    protein_pct: number;
+    carbs_pct: number;
+    fat_pct: number;
+    protein_g_per_kg_bw: number | null;
+    body_weight_kg: number | null;
+  };
+  micros: { date: string; sugar: number; saturated_fat: number; sodium_mg: number }[];
+  caloriesByDay: { date: string; kcal: number; protein: number; carbs: number; fat: number; fiber: number }[];
+  topFoodsByFreq: StatsTopFood[];
+  topFoodsByKcal: StatsTopFood[];
+  mealDistribution: StatsMealSlice[];
+  body: {
+    weight_first: number | null;
+    weight_last: number | null;
+    weight_delta: number | null;
+    fat_first: number | null;
+    fat_last: number | null;
+    fat_delta: number | null;
+    lean_first: number | null;
+    lean_last: number | null;
+    lean_delta: number | null;
+    weekly_rate_kg: number;
+    goal_weight: number | null;
+    goal_eta_days: number | null;
+    points: StatsBodyPoint[];
+    meas_first: Measurement | null;
+    meas_last: Measurement | null;
+  };
+  training: {
+    sessions: number;
+    total_minutes: number;
+    total_burned: number;
+    by_category: { category: string; sessions: number; minutes: number; burned: number }[];
+    by_muscle:   { muscle: string; sets: number; total_volume_kg: number }[];
+    top_exercises: {
+      name: string;
+      sessions: number;
+      total_minutes: number;
+      total_burned: number;
+      total_volume_kg: number;
+    }[];
+    longest_session: { date: string; type: string; duration_min: number; calories_burned: number } | null;
+    plan_done_pct: number | null;
+  };
+  activity: {
+    avg_steps: number;
+    total_steps: number;
+    max_steps_day: { date: string; steps: number } | null;
+    avg_distance_km: number;
+    total_distance_km: number;
+    avg_active_kcal: number;
+    total_active_kcal: number;
+    avg_resting_kcal: number;
+    avg_extra_kcal: number;
+    total_extra_kcal: number;
+    points: { date: string; steps: number; distance_km: number; active_kcal: number; resting_kcal: number; extra_kcal: number }[];
+  };
+  heatmap: StatsHeatmapDay[];
+  dayOfWeek: StatsDow[];
+  records: {
+    biggest_kcal_day: { date: string; kcal: number } | null;
+    smallest_kcal_day: { date: string; kcal: number } | null;
+    most_steps_day: { date: string; steps: number } | null;
+    most_burned_day: { date: string; kcal: number } | null;
+    longest_session: { date: string; type: string; duration_min: number; calories_burned: number } | null;
+    heaviest_set: { date: string; type: string; weight_kg: number; reps: number } | null;
+    longest_run: { date: string; type: string; duration_min: number } | null;
+    most_water_day: { date: string; ml: number } | null;
+    biggest_weight_drop: { drop_kg: number; from: { date: string; weight: number }; to: { date: string; weight: number } } | null;
+    best_streak: number;
+    total_kcal_tracked: number;
+    total_workouts: number;
+    total_distance_km: number;
+    total_steps: number;
+    total_water_ml: number;
+    days_logged_alltime: number;
+  };
+}
+
+export type StatsRange = 7 | 30 | 90 | 180 | 365 | 'all';
+
 export type GoalType = 'lose' | 'maintain' | 'gain';
 
 export interface TDEEResult {
@@ -578,6 +730,7 @@ export type PageName =
   | 'pantry'
   | 'recipes'
   | 'history'
+  | 'stats'
   | 'week'
   | 'day'
   | 'weight'
