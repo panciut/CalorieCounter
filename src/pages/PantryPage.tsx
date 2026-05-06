@@ -163,7 +163,7 @@ export default function PantryPage() {
   const [collapsedFoods, setCollapsedFoods] = useState<Set<number>>(new Set());
   const [editingBatch, setEditingBatch] = useState<{ id: number; qty: string; expiry: string; unit: PantryUnit } | null>(null);
   const [pantrySearch, setPantrySearch] = useState('');
-  const qtyRef = useRef<HTMLInputElement>(null);
+  const qtyRef = useRef<HTMLInputElement | null>(null);
 
   const [shopping, setShopping]   = useState<ShoppingItem[]>([]);
   const [shopFood, setShopFood]   = useState<Food | null>(null);
@@ -736,7 +736,7 @@ interface SelectedFoodEditorProps {
   unit: PantryUnit; setUnit: (u: PantryUnit) => void;
   expiry: string; setExpiry: (s: string) => void;
   addGrams: number;
-  qtyRef: React.RefObject<HTMLInputElement>;
+  qtyRef: React.RefObject<HTMLInputElement | null>;
   onBack: () => void;
   onAdd: () => void;
 }
