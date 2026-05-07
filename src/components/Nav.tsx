@@ -38,6 +38,7 @@ const ICONS: Record<PageName, string> = {
   day:          'M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z',
   sleep:        'M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z',
   tasks:        'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4',
+  habits:       'M3 5a2 2 0 012-2h3a2 2 0 012 2v3a2 2 0 01-2 2H5a2 2 0 01-2-2V5zm9 0a2 2 0 012-2h3a2 2 0 012 2v3a2 2 0 01-2 2h-3a2 2 0 01-2-2V5zm0 9a2 2 0 012-2h3a2 2 0 012 2v3a2 2 0 01-2 2h-3a2 2 0 01-2-2v-3zm-9 0a2 2 0 012-2h3a2 2 0 012 2v3a2 2 0 01-2 2H5a2 2 0 01-2-2v-3z',
 };
 
 // ── Nav item definitions ───────────────────────────────────────────────────────
@@ -60,6 +61,7 @@ const DEFAULT_ORDER: NavItem[] = [
   { page: 'goals',         labelKey: 'nav.goals',         group: 'health' },
   { page: 'sleep',         labelKey: 'nav.sleep',         group: 'lifestyle' },
   { page: 'tasks',         labelKey: 'nav.tasks',         group: 'lifestyle' },
+  { page: 'habits',        labelKey: 'nav.habits',        group: 'lifestyle' },
   { page: 'notifications', labelKey: 'nav.notifications', group: 'system' },
   { page: 'data',          labelKey: 'nav.data',          group: 'system' },
   { page: 'settings',      labelKey: 'nav.settings',      group: 'system' },

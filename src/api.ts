@@ -13,6 +13,7 @@ import type {
   AppNotification, DismissedNotification,
   SleepEntry, SleepTrendPoint,
   Task, TaskCompletionRate,
+  Habit, HabitWeekStat,
 } from './types';
 
 // Re-export for consumers that need it
@@ -301,6 +302,19 @@ export const api = {
     delete:               (id: number) => invoke<{ ok: boolean }>('tasks:delete', { id }),
     rolloverFromYesterday:(date: string) => invoke<{ count: number }>('tasks:rolloverFromYesterday', { date }),
     completionRate:       (date: string) => invoke<TaskCompletionRate>('tasks:completionRate', { date }),
+  },
+
+  habits: {
+    list:             () => invoke<Habit[]>('habits:list'),
+    create:           (data: { name: string; icon?: string; color?: string; target_per_week?: number }) => invoke<{ id: number }>('habits:create', data),
+    update:           (data: { id: number; name?: string; icon?: string; color?: string; target_per_week?: number }) => invoke<{ ok: boolean }>('habits:update', data),
+    archive:          (id: number) => invoke<{ ok: boolean }>('habits:archive', { id }),
+    delete:           (id: number) => invoke<{ ok: boolean }>('habits:delete', { id }),
+    check:            (habit_id: number, date: string) => invoke<{ checked: boolean }>('habits:check', { habit_id, date }),
+    uncheck:          (habit_id: number, date: string) => invoke<{ unchecked: boolean }>('habits:uncheck', { habit_id, date }),
+    getWeekStats:     (date: string) => invoke<HabitWeekStat[]>('habits:getWeekStats', { date }),
+    getCurrentStreak: (habit_id: number) => invoke<{ streak: number }>('habits:getCurrentStreak', { habit_id }),
+    getMonthData:     (habit_id: number, year: number, month: number) => invoke<{ dates: string[] }>('habits:getMonthData', { habit_id, year, month }),
   },
 
   notifications: {

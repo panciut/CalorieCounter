@@ -573,7 +573,8 @@ export type PageName =
   | 'notifications'
   | 'settings'
   | 'sleep'
-  | 'tasks';
+  | 'tasks'
+  | 'habits';
 
 export type NotificationType =
   | 'pantry_expiry'
@@ -623,4 +624,28 @@ export interface NavParam {
   weekStart?: string;
   date?: string;
   fromWeek?: string;
+}
+
+// ── Habits ────────────────────────────────────────────────────────────────────
+
+export interface Habit {
+  id: number;
+  name: string;
+  icon: string;
+  color: string;
+  target_per_week: number;
+  archived: number; // 0 or 1
+  created_at: string;
+}
+
+export interface HabitLog {
+  id: number;
+  habit_id: number;
+  date: string;
+  value: number;
+}
+
+export interface HabitWeekStat {
+  habit_id: number;
+  checks: { date: string; done: boolean }[];
 }
