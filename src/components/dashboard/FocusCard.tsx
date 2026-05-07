@@ -210,7 +210,7 @@ export default function FocusCard() {
                 flexShrink: 0,
               }}
             >
-              Avvia Pomodoro
+              {t('focus.startPomodoro')}
             </button>
           </div>
         </>

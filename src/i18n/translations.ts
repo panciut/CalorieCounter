@@ -695,8 +695,9 @@ export const translations: Record<'en' | 'it', TranslationMap> = {
     'focus.resume':       'Resume',
     'focus.stop':         'Stop',
     'focus.addManual':    'Add manually',
-    'focus.completed':    'Session complete!',
-    'focus.totalMin':     'focus minutes today',
+    'focus.completed':      'Session complete!',
+    'focus.totalMin':       'focus minutes today',
+    'focus.startPomodoro':  'Start Pomodoro',
   },
 
   it: {
@@ -1390,7 +1391,8 @@ export const translations: Record<'en' | 'it', TranslationMap> = {
     'focus.resume':       'Riprendi',
     'focus.stop':         'Ferma',
     'focus.addManual':    'Aggiungi manualmente',
-    'focus.completed':    'Sessione completata!',
-    'focus.totalMin':     'minuti di focus oggi',
+    'focus.completed':      'Sessione completata!',
+    'focus.totalMin':       'minuti di focus oggi',
+    'focus.startPomodoro':  'Avvia Pomodoro',
   },
 };

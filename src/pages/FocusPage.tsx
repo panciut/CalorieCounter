@@ -127,13 +127,16 @@ function TimerTab({ onSessionComplete }: TimerTabProps) {
   // Day stats for summary below timer
   const [dayStats, setDayStats] = useState<FocusDayStats | null>(null);
 
-  const intervalRef   = useRef<ReturnType<typeof setInterval> | null>(null);
-  const pausedAtRef   = useRef<number>(0); // seconds already elapsed when paused
+  const intervalRef      = useRef<ReturnType<typeof setInterval> | null>(null);
+  const totalPausedMsRef = useRef<number>(0);   // cumulative ms spent paused
+  const pausedStartRef   = useRef<number | null>(null); // timestamp when current pause began
 
   // Check for an active session on mount
   useEffect(() => {
     api.focus.getActiveSession().then(active => {
       if (active) {
+        // On mount totalPausedMsRef is 0 — we have no pause history from a previous run.
+        // Use wall-clock elapsed as best estimate (existing behaviour).
         const elapsed = Math.floor((Date.now() - new Date(active.started_at).getTime()) / 1000);
         const rem = Math.max(0, pomoDurationSec - elapsed);
         setSessionId(active.id);
@@ -157,7 +160,9 @@ function TimerTab({ onSessionComplete }: TimerTabProps) {
     if (timerState === 'RUNNING') {
       intervalRef.current = setInterval(() => {
         if (startedAt) {
-          const elapsed = Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000);
+          const rawElapsed = Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000);
+          const pausedSec  = Math.floor(totalPausedMsRef.current / 1000);
+          const elapsed    = rawElapsed - pausedSec;
           const rem = Math.max(0, pomoDurationSec - elapsed);
           setRemaining(rem);
           if (rem === 0) {
@@ -183,12 +188,13 @@ function TimerTab({ onSessionComplete }: TimerTabProps) {
   }, [timerState, startedAt, sessionId]);
 
   function handleAutoComplete(id: number, sa: string) {
-    const elapsed = Math.floor((Date.now() - new Date(sa).getTime()) / 1000);
-    const durationMin = Math.round(elapsed / 60);
+    const elapsedMs   = Date.now() - new Date(sa).getTime() - totalPausedMsRef.current;
+    const durationMin = Math.round(elapsedMs / 60000);
     api.focus.stopSession(id, durationMin).then(() => {
       showToast(`${t('focus.completed')} +${durationMin} min`);
       resetTimer();
       loadDayStats();
+      onSessionComplete?.();
     }).catch(() => {});
   }
 
@@ -202,7 +208,8 @@ function TimerTab({ onSessionComplete }: TimerTabProps) {
     setSessionId(null);
     setStartedAt(null);
     setProject('');
-    pausedAtRef.current = 0;
+    totalPausedMsRef.current = 0;
+    pausedStartRef.current   = null;
   }
 
   async function handleStart() {
@@ -221,28 +228,29 @@ function TimerTab({ onSessionComplete }: TimerTabProps) {
   }
 
   function handlePause() {
-    const elapsed = startedAt ? Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000) : 0;
-    pausedAtRef.current = elapsed;
+    pausedStartRef.current = Date.now();
     setTimerState('PAUSED');
   }
 
   function handleResume() {
-    // Adjust startedAt so elapsed time calculation remains correct after the pause
-    if (startedAt) {
-      const newStart = new Date(Date.now() - pausedAtRef.current * 1000).toISOString();
-      setStartedAt(newStart);
+    if (pausedStartRef.current != null) {
+      totalPausedMsRef.current += Date.now() - pausedStartRef.current;
+      pausedStartRef.current = null;
     }
     setTimerState('RUNNING');
   }
 
   async function handleStop() {
     if (sessionId == null || startedAt == null) { resetTimer(); return; }
-    const elapsed = Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000);
-    const durationMin = Math.max(1, Math.round(elapsed / 60));
+    // If we're stopping while paused, count that pause segment too
+    const extraPausedMs = pausedStartRef.current != null ? Date.now() - pausedStartRef.current : 0;
+    const elapsedMs     = Date.now() - new Date(startedAt).getTime() - totalPausedMsRef.current - extraPausedMs;
+    const durationMin   = Math.max(1, Math.round(elapsedMs / 60000));
     try {
       await api.focus.stopSession(sessionId, durationMin);
       showToast(`${t('focus.completed')} +${durationMin} min`);
       loadDayStats();
+      onSessionComplete?.();
     } catch (e) {
       console.error('focus:stopSession error', e);
     }
