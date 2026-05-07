@@ -1,6 +1,8 @@
 const { ipcMain } = require('electron');
 const { getDb } = require('../db');
 const { pushUndo } = require('./undo.ipc');
+const { updateSectionStreak } = require('./streak-utils');
+const { addPointsInternal } = require('./gamification.ipc');
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -47,6 +49,17 @@ function registerSleepIpc() {
            factors != null ? JSON.stringify(factors) : null, note || null, d);
 
     pushUndo('sleep:upsert', { date: d, old: old || null });
+
+    try {
+      const { streak, isNew, milestone, milestonePoints } = updateSectionStreak(db, 'sleep', d);
+      if (isNew) {
+        addPointsInternal(db, 'section_streak', 'streak_daily_sleep', 5, { section: 'sleep', streak });
+        if (milestone) {
+          addPointsInternal(db, 'section_streak', `streak_${milestone}_sleep`, milestonePoints, { section: 'sleep', streak });
+        }
+      }
+    } catch (_) {}
+
     return { ok: true };
   });
 

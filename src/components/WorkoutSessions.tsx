@@ -2,8 +2,9 @@ import { useState, useEffect, useRef } from 'react';
 import { api } from '../api';
 import { useT } from '../i18n/useT';
 import { useAchievementToast } from '../hooks/useAchievementToast';
-import type { WorkoutSession, WorkoutExerciseSet } from '../types';
+import type { WorkoutSession, WorkoutExerciseSet, ExerciseType } from '../types';
 import { cardOuter, eyebrow, pillPrimary, pillGhost, tinyInput } from '../lib/fbUI';
+import ExerciseSearch from './ExerciseSearch';
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -66,10 +67,13 @@ function EffortDots({ value }: { value: number | null }) {
 interface AddSetFormProps {
   sessionId: number;
   onAdded: () => void;
+  exercises: ExerciseType[];
 }
 
-function AddSetForm({ sessionId, onAdded }: AddSetFormProps) {
+function AddSetForm({ sessionId, onAdded, exercises }: AddSetFormProps) {
   const { t } = useT();
+  const [exerciseId, setExerciseId] = useState<number | null>(null);
+  const [exerciseName, setExerciseName] = useState<string>('');
   const [reps, setReps] = useState('');
   const [weight, setWeight] = useState('');
   const [saving, setSaving] = useState(false);
@@ -80,6 +84,7 @@ function AddSetForm({ sessionId, onAdded }: AddSetFormProps) {
       const setIdx = Date.now(); // use timestamp as loose ordering index
       await api.workouts.addSet({
         session_id: sessionId,
+        exercise_id: exerciseId,
         set_idx: setIdx,
         reps: reps ? parseInt(reps, 10) : null,
         weight_kg: weight ? parseFloat(weight) : null,
@@ -94,6 +99,22 @@ function AddSetForm({ sessionId, onAdded }: AddSetFormProps) {
 
   return (
     <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+      <div style={{ flex: '1 1 auto', minWidth: 200 }}>
+        <ExerciseSearch
+          items={exercises}
+          value={exerciseName}
+          onSelect={ex => {
+            setExerciseId(ex.id);
+            setExerciseName(ex.name);
+          }}
+          onClear={() => {
+            setExerciseId(null);
+            setExerciseName('');
+          }}
+          placeholder={t('workouts.selectExercise')}
+          showAllWhenEmpty
+        />
+      </div>
       <input
         type="number"
         placeholder="Reps"
@@ -113,7 +134,7 @@ function AddSetForm({ sessionId, onAdded }: AddSetFormProps) {
         disabled={saving || (!reps && !weight)}
         style={pillPrimary}
       >
-        {t('workouts.addSet')}
+        Aggiungi
       </button>
     </div>
   );
@@ -128,7 +149,12 @@ interface EndSessionFormProps {
 function EndSessionForm({ session, onEnded, onCancel }: EndSessionFormProps) {
   const { t } = useT();
   const showAchievements = useAchievementToast();
-  const [durationMin, setDurationMin] = useState('');
+  
+  // Automatically calculate elapsed time as default duration
+  const startMs = new Date(session.started_at?.includes('T') ? session.started_at : session.started_at + 'Z').getTime();
+  const elapsedMin = Math.max(1, Math.round((Date.now() - (isNaN(startMs) ? Date.now() : startMs)) / 60000));
+  
+  const [durationMin, setDurationMin] = useState(String(elapsedMin));
   const [calories, setCalories] = useState('');
   const [effort, setEffort] = useState('');
   const [note, setNote] = useState(session.note ?? '');
@@ -217,6 +243,13 @@ function ActiveSessionView({ session, onRefresh }: ActiveSessionViewProps) {
   const { t } = useT();
   const [showEndForm, setShowEndForm] = useState(false);
   const [showAddSet, setShowAddSet] = useState(false);
+  const [exercises, setExercises] = useState<ExerciseType[]>([]);
+
+  useEffect(() => {
+    api.exercises.getTypes().then(types => {
+      setExercises(types);
+    }).catch(() => {});
+  }, []);
 
   return (
     <div style={{ ...cardOuter, borderColor: 'var(--fb-accent)', boxShadow: '0 0 0 1px var(--fb-accent)' }}>
@@ -233,21 +266,25 @@ function ActiveSessionView({ session, onRefresh }: ActiveSessionViewProps) {
       {session.sets && session.sets.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           <div style={eyebrow}>Set registrati</div>
-          {session.sets.map((s, i) => (
-            <div key={s.id} style={{ display: 'flex', gap: 8, fontSize: 12, color: 'var(--fb-text-2)', alignItems: 'center' }}>
-              <span style={{ color: 'var(--fb-text-3)', minWidth: 18 }}>#{i + 1}</span>
-              {s.reps != null && <span>{s.reps} reps</span>}
-              {s.weight_kg != null && <span>{s.weight_kg} kg</span>}
-              {s.distance_km != null && <span>{s.distance_km} km</span>}
-              {s.duration_sec != null && <span>{s.duration_sec}s</span>}
-            </div>
-          ))}
+          {session.sets.map((s, i) => {
+            const exName = exercises.find(e => e.id === s.exercise_id)?.name || 'Esercizio';
+            return (
+              <div key={s.id} style={{ display: 'flex', gap: 8, fontSize: 12, color: 'var(--fb-text-2)', alignItems: 'center' }}>
+                <span style={{ color: 'var(--fb-text-3)', minWidth: 18 }}>#{i + 1}</span>
+                <span style={{ fontWeight: 'bold' }}>{exName}</span>
+                {s.reps != null && <span>{s.reps} reps</span>}
+                {s.weight_kg != null && <span>{s.weight_kg} kg</span>}
+                {s.distance_km != null && <span>{s.distance_km} km</span>}
+                {s.duration_sec != null && <span>{s.duration_sec}s</span>}
+              </div>
+            );
+          })}
         </div>
       )}
 
       {/* Add set */}
       {showAddSet ? (
-        <AddSetForm sessionId={session.id} onAdded={() => { setShowAddSet(false); onRefresh(); }} />
+        <AddSetForm sessionId={session.id} onAdded={() => { setShowAddSet(false); onRefresh(); }} exercises={exercises} />
       ) : (
         <button onClick={() => setShowAddSet(true)} style={pillGhost}>+ {t('workouts.addSet')}</button>
       )}

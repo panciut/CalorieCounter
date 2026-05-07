@@ -42,57 +42,334 @@ function shortDate(iso: string): string {
   return dd;
 }
 
-// ── Pomodoro Circle ───────────────────────────────────────────────────────────
-
-interface PomodoroCircleProps {
-  remaining: number;  // seconds remaining
-  total: number;      // total seconds
+// SQLite datetime('now') returns UTC without 'Z' — force UTC parsing
+function toUTC(s: string): number {
+  const safe = s.includes('Z') || s.includes('+') ? s : s.replace(' ', 'T') + 'Z';
+  return new Date(safe).getTime();
 }
 
-function PomodoroCircle({ remaining, total }: PomodoroCircleProps) {
-  const R = 80;
-  const cx = 100;
-  const cy = 100;
-  const circumference = 2 * Math.PI * R;
-  const progress = total > 0 ? remaining / total : 1;
-  const dashoffset = circumference * (1 - progress);
+// ── Pomodoro Circle ───────────────────────────────────────────────────────────
 
+function PomodoroCircle({ remaining, total }: { remaining: number; total: number }) {
+  const R = 80; const cx = 100; const cy = 100;
+  const circ = 2 * Math.PI * R;
+  const progress = total > 0 ? remaining / total : 1;
   return (
     <svg width={200} height={200} style={{ display: 'block', margin: '0 auto' }}>
-      {/* Track */}
-      <circle
-        cx={cx} cy={cy} r={R}
-        fill="none"
-        stroke="var(--fb-border-strong, var(--fb-border))"
-        strokeWidth={8}
-      />
-      {/* Progress arc */}
-      <circle
-        cx={cx} cy={cy} r={R}
-        fill="none"
-        stroke="var(--fb-accent)"
-        strokeWidth={8}
-        strokeLinecap="round"
-        strokeDasharray={circumference}
-        strokeDashoffset={dashoffset}
-        transform={`rotate(-90 ${cx} ${cy})`}
-        style={{ transition: 'stroke-dashoffset 1s linear' }}
-      />
-      {/* Time text */}
-      <text
-        x={cx} y={cy + 8}
-        textAnchor="middle"
-        style={{
-          fontFamily: 'var(--font-serif)',
-          fontSize: 32,
-          fontStyle: 'italic',
-          fill: 'var(--fb-text)',
-          fontWeight: 400,
-        }}
-      >
+      <circle cx={cx} cy={cy} r={R} fill="none" stroke="var(--fb-border-strong, var(--fb-border))" strokeWidth={8} />
+      <circle cx={cx} cy={cy} r={R} fill="none" stroke="var(--fb-accent)" strokeWidth={8} strokeLinecap="round"
+        strokeDasharray={circ} strokeDashoffset={circ * (1 - progress)}
+        transform={`rotate(-90 ${cx} ${cy})`} style={{ transition: 'stroke-dashoffset 1s linear' }} />
+      <text x={cx} y={cy + 8} textAnchor="middle"
+        style={{ fontFamily: 'var(--font-serif)', fontSize: 32, fontStyle: 'italic', fill: 'var(--fb-text)', fontWeight: 400 }}>
         {formatMM_SS(remaining)}
       </text>
     </svg>
+  );
+}
+
+// ── Session dual-ring circle ───────────────────────────────────────────────────
+
+function SessionCircle({ phaseRemain, phaseTotal, totalProgress, phase, idle, idleLabel }: {
+  phaseRemain: number; phaseTotal: number; totalProgress: number;
+  phase: 'focus' | 'break'; idle: boolean; idleLabel: string;
+}) {
+  const Ro = 85; const Ri = 68; const cx = 100; const cy = 100;
+  const co = 2 * Math.PI * Ro;
+  const ci = 2 * Math.PI * Ri;
+  const phaseProgress = phaseTotal > 0 ? 1 - phaseRemain / phaseTotal : 0;
+  const phaseColor = phase === 'focus' ? 'var(--fb-accent)' : '#10b981';
+  return (
+    <svg width={200} height={200} style={{ display: 'block', margin: '0 auto' }}>
+      {/* Outer ring: total session progress */}
+      <circle cx={cx} cy={cy} r={Ro} fill="none" stroke="var(--fb-border)" strokeWidth={4} />
+      {!idle && totalProgress > 0 && (
+        <circle cx={cx} cy={cy} r={Ro} fill="none"
+          stroke="color-mix(in srgb, var(--fb-accent) 55%, transparent)"
+          strokeWidth={4} strokeLinecap="round"
+          strokeDasharray={co} strokeDashoffset={co * (1 - totalProgress)}
+          transform={`rotate(-90 ${cx} ${cy})`}
+          style={{ transition: 'stroke-dashoffset 1s linear' }} />
+      )}
+      {/* Inner ring: current phase */}
+      <circle cx={cx} cy={cy} r={Ri} fill="none" stroke="var(--fb-border)" strokeWidth={8} />
+      {!idle && (
+        <circle cx={cx} cy={cy} r={Ri} fill="none" stroke={phaseColor}
+          strokeWidth={8} strokeLinecap="round"
+          strokeDasharray={ci} strokeDashoffset={ci * (1 - phaseProgress)}
+          transform={`rotate(-90 ${cx} ${cy})`}
+          style={{ transition: 'stroke-dashoffset 0.5s linear' }} />
+      )}
+      {/* Center */}
+      <text x={cx} y={cy + 8} textAnchor="middle"
+        style={{ fontFamily: 'var(--font-serif)', fontSize: 28, fontStyle: 'italic', fill: 'var(--fb-text)', fontWeight: 400 }}>
+        {idle ? idleLabel : formatMM_SS(phaseRemain)}
+      </text>
+    </svg>
+  );
+}
+
+// ── Session Timer ─────────────────────────────────────────────────────────────
+
+type SState = 'IDLE' | 'RUNNING' | 'PAUSED';
+type SPhase = 'focus' | 'break';
+
+function SessionTimerTab({ onSessionComplete }: { onSessionComplete: () => void }) {
+  const { showToast } = useToast();
+  const showAchievements = useAchievementToast();
+
+  const [sState, setSState]         = useState<SState>('IDLE');
+  const [phase, setPhase]           = useState<SPhase>('focus');
+  const [phaseRemainSec, setPhaseRemainSec] = useState(0);
+  const [focusMinDone, setFocusMinDone]     = useState(0);
+  const [totalMin, setTotalMin]     = useState(60);
+  const [blockMin, setBlockMin]     = useState(25);
+  const [project, setProject]       = useState('');
+  const [dayStats, setDayStats]     = useState<FocusDayStats | null>(null);
+
+  // All transition-critical values live in refs to avoid stale closures
+  const phaseRef        = useRef<SPhase>('focus');
+  const phaseStartMsRef = useRef<number>(0);
+  const phaseTargetMsRef= useRef<number>(0);
+  const pausedMsRef     = useRef<number>(0);
+  const pauseStartRef   = useRef<number | null>(null);
+  const focusDoneRef    = useRef<number>(0);
+  const totalMinRef     = useRef<number>(60);
+  const blockMinRef     = useRef<number>(25);
+  const sessionIdRef    = useRef<number | null>(null);
+  const intervalRef     = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // onPhaseEnd stored in ref so interval always calls the latest version
+  const onPhaseEndRef = useRef<() => void>(() => {});
+
+  function getPhaseRemainSec(): number {
+    const currentPauseMs = pauseStartRef.current != null ? Date.now() - pauseStartRef.current : 0;
+    const elapsed = Date.now() - phaseStartMsRef.current - pausedMsRef.current - currentPauseMs;
+    return Math.max(0, Math.floor((phaseTargetMsRef.current - elapsed) / 1000));
+  }
+
+  function beginPhase(p: SPhase, durationMin: number) {
+    phaseRef.current       = p;
+    phaseStartMsRef.current= Date.now();
+    phaseTargetMsRef.current = durationMin * 60 * 1000;
+    pausedMsRef.current    = 0;
+    pauseStartRef.current  = null;
+    setPhase(p);
+    setPhaseRemainSec(durationMin * 60);
+  }
+
+  function loadDayStats() {
+    api.focus.getDayStats(todayStr()).then(s => setDayStats(s)).catch(() => {});
+  }
+
+  // The phase-end handler — always accessed via ref inside interval
+  function onPhaseEnd() {
+    if (phaseRef.current === 'focus') {
+      const blockDone = Math.round(phaseTargetMsRef.current / 60000);
+      const newDone   = focusDoneRef.current + blockDone;
+      focusDoneRef.current = newDone;
+      setFocusMinDone(newDone);
+
+      if (newDone >= totalMinRef.current) {
+        // Session complete
+        const id = sessionIdRef.current!;
+        api.focus.stopSession(id, Math.max(1, newDone)).then(() => {
+          const pts = 10 + Math.floor(newDone / 25) * 5;
+          showToast(`Sessione completata! +${newDone} min 🎉`);
+          resetSession();
+          loadDayStats();
+          onSessionComplete();
+          api.gamification.addPoints({ module: 'focus', reason: 'session_completed', points: pts, context: { date: todayStr() } })
+            .then(r => { if (r.new_achievements?.length) showAchievements(r.new_achievements); }).catch(() => {});
+        }).catch(() => {});
+      } else {
+        // Start 5-min break
+        beginPhase('break', 5);
+        setSState('RUNNING'); // triggers effect restart
+      }
+    } else {
+      // Break over → next focus block
+      const remaining  = totalMinRef.current - focusDoneRef.current;
+      const nextBlock  = Math.min(blockMinRef.current, remaining);
+      beginPhase('focus', nextBlock);
+      setSState('RUNNING'); // triggers effect restart
+    }
+  }
+  onPhaseEndRef.current = onPhaseEnd;
+
+  // Interval effect — depends on [sState, phase] so restarts on phase transition
+  useEffect(() => {
+    if (sState !== 'RUNNING') {
+      if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
+      return;
+    }
+    intervalRef.current = setInterval(() => {
+      const rem = getPhaseRemainSec();
+      setPhaseRemainSec(rem);
+      if (rem === 0) {
+        clearInterval(intervalRef.current!);
+        intervalRef.current = null;
+        onPhaseEndRef.current();
+      }
+    }, 500);
+    return () => { if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; } };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sState, phase]);
+
+  async function handleStart() {
+    try {
+      const res = await api.focus.startSession({ type: 'session', project: project || undefined });
+      sessionIdRef.current = res.id;
+      focusDoneRef.current = 0;
+      totalMinRef.current  = totalMin;
+      blockMinRef.current  = blockMin;
+      setFocusMinDone(0);
+      const firstBlock = Math.min(blockMin, totalMin);
+      beginPhase('focus', firstBlock);
+      setSState('RUNNING');
+    } catch (e) { console.error('session:start', e); }
+  }
+
+  function handlePause() {
+    pauseStartRef.current = Date.now();
+    setSState('PAUSED');
+  }
+
+  function handleResume() {
+    if (pauseStartRef.current != null) {
+      pausedMsRef.current += Date.now() - pauseStartRef.current;
+      pauseStartRef.current = null;
+    }
+    setSState('RUNNING');
+  }
+
+  async function handleStop() {
+    if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
+    const doneSoFar = focusDoneRef.current;
+    const id = sessionIdRef.current;
+    if (id != null && doneSoFar >= 1) {
+      await api.focus.stopSession(id, doneSoFar).catch(() => {});
+      showToast(`Stop — +${doneSoFar} min salvati`);
+      loadDayStats();
+      onSessionComplete();
+    }
+    resetSession();
+  }
+
+  function resetSession() {
+    setSState('IDLE');
+    setPhase('focus');
+    setFocusMinDone(0);
+    setPhaseRemainSec(0);
+    focusDoneRef.current  = 0;
+    sessionIdRef.current  = null;
+    phaseRef.current      = 'focus';
+  }
+
+  useEffect(() => { loadDayStats(); return () => { if (intervalRef.current) clearInterval(intervalRef.current); }; }, []);
+
+  const blocksTotal    = Math.ceil(totalMin / blockMin);
+  const blocksDone     = Math.floor(focusMinDone / blockMin);
+  const totalProgress  = totalMin > 0 ? Math.min(focusMinDone / totalMin, 1) : 0;
+  const currentBlockSec= phaseRef.current === 'focus'
+    ? Math.min(blockMin, totalMin - focusDoneRef.current) * 60
+    : 5 * 60;
+
+  const phaseColor = phase === 'focus' ? 'var(--fb-accent)' : '#10b981';
+  const totalFocusMin = dayStats?.total_min ?? 0;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, padding: '24px 0', maxWidth: 520, margin: '0 auto' }}>
+      <div style={{ ...cardOuter, alignItems: 'center', gap: 18 }}>
+
+        {/* Phase pill */}
+        {sState !== 'IDLE' && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 14px', borderRadius: 99, background: `color-mix(in srgb, ${phaseColor} 12%, transparent)`, border: `1px solid ${phaseColor}` }}>
+            <span style={{ fontSize: 14 }}>{phase === 'focus' ? '🧠' : '☕'}</span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: phaseColor, letterSpacing: '0.05em' }}>
+              {phase === 'focus' ? 'FOCUS' : 'PAUSA 5 min'}
+            </span>
+            {sState === 'PAUSED' && <span style={{ fontSize: 11, color: 'var(--fb-text-3)' }}>· in pausa</span>}
+          </div>
+        )}
+
+        <SessionCircle
+          phaseRemain={phaseRemainSec}
+          phaseTotal={currentBlockSec}
+          totalProgress={totalProgress}
+          phase={phase}
+          idle={sState === 'IDLE'}
+          idleLabel={`${totalMin}m`}
+        />
+
+        {/* Overall progress */}
+        {sState !== 'IDLE' && (
+          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 5 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--fb-text-3)' }}>
+              <span>Focus: <strong style={{ color: 'var(--fb-text)' }}>{focusMinDone}/{totalMin} min</strong></span>
+              <span>Blocco <strong style={{ color: 'var(--fb-text)' }}>{Math.min(blocksDone + (phase === 'focus' ? 1 : blocksDone), blocksTotal)}/{blocksTotal}</strong></span>
+            </div>
+            <div style={{ height: 4, borderRadius: 99, background: 'var(--fb-border)', overflow: 'hidden' }}>
+              <div style={{ height: '100%', borderRadius: 99, background: 'var(--fb-accent)', width: `${totalProgress * 100}%`, transition: 'width 1s linear' }} />
+            </div>
+          </div>
+        )}
+
+        {/* Setup (IDLE) */}
+        {sState === 'IDLE' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14, width: '100%' }}>
+            <div>
+              <div style={{ ...eyebrow, marginBottom: 8 }}>Durata totale</div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {[30, 45, 60, 90, 120].map(m => (
+                  <button key={m} type="button" onClick={() => setTotalMin(m)} style={{ padding: '6px 14px', borderRadius: 99, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-body)', transition: 'all .15s cubic-bezier(0.16,1,0.3,1)', border: `1.5px solid ${totalMin === m ? 'var(--fb-accent)' : 'var(--fb-border)'}`, background: totalMin === m ? 'color-mix(in srgb, var(--fb-accent) 12%, transparent)' : 'transparent', color: totalMin === m ? 'var(--fb-accent)' : 'var(--fb-text-2)' }}>{m}m</button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <div style={{ ...eyebrow, marginBottom: 8 }}>Blocco focus</div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {[25, 45, 50].map(m => (
+                  <button key={m} type="button" onClick={() => setBlockMin(m)} style={{ padding: '6px 14px', borderRadius: 99, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-body)', transition: 'all .15s cubic-bezier(0.16,1,0.3,1)', border: `1.5px solid ${blockMin === m ? 'var(--fb-accent)' : 'var(--fb-border)'}`, background: blockMin === m ? 'color-mix(in srgb, var(--fb-accent) 12%, transparent)' : 'transparent', color: blockMin === m ? 'var(--fb-accent)' : 'var(--fb-text-2)' }}>{m}m</button>
+                ))}
+              </div>
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--fb-text-3)', fontStyle: 'italic' }}>
+              {Math.ceil(totalMin / blockMin)} blocchi × {blockMin}m + pause 5m · totale ~{totalMin + (Math.ceil(totalMin / blockMin) - 1) * 5}m
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+              <input type="text" value={project} onChange={e => setProject(e.target.value)} placeholder="Progetto (opzionale)"
+                style={{ width: '100%', maxWidth: 280, background: 'var(--fb-bg)', border: '1px solid var(--fb-border)', color: 'var(--fb-text)', borderRadius: 8, padding: '7px 12px', fontSize: 13, outline: 'none', fontFamily: 'var(--font-body)' }} />
+              <button type="button" style={{ ...fbBtnPrimary, fontSize: 14, padding: '10px 32px' }} onClick={handleStart}>
+                ▶ Avvia sessione
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Running controls */}
+        {sState === 'RUNNING' && (
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button type="button" style={fbBtnGhost} onClick={handlePause}>⏸ {/* pause */}Pausa</button>
+            <button type="button" style={{ ...fbBtnGhost, borderColor: 'var(--fb-red,#ef4444)', color: 'var(--fb-red,#ef4444)' }} onClick={handleStop}>⏹ Stop</button>
+          </div>
+        )}
+        {sState === 'PAUSED' && (
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button type="button" style={fbBtnPrimary} onClick={handleResume}>▶ Riprendi</button>
+            <button type="button" style={{ ...fbBtnGhost, borderColor: 'var(--fb-red,#ef4444)', color: 'var(--fb-red,#ef4444)' }} onClick={handleStop}>⏹ Stop</button>
+          </div>
+        )}
+
+        {/* Day summary */}
+        <div style={{ display: 'flex', gap: 24, paddingTop: 8, borderTop: '1px solid var(--fb-border)', width: '100%', justifyContent: 'center' }}>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 22, fontFamily: 'var(--font-serif)', fontStyle: 'italic', color: 'var(--fb-text)', letterSpacing: -0.5 }}>{formatDurationShort(totalFocusMin)}</div>
+            <div style={{ ...eyebrow, marginTop: 2 }}>focus oggi</div>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -139,7 +416,7 @@ function TimerTab({ onSessionComplete }: TimerTabProps) {
       if (active) {
         // On mount totalPausedMsRef is 0 — we have no pause history from a previous run.
         // Use wall-clock elapsed as best estimate (existing behaviour).
-        const elapsed = Math.floor((Date.now() - new Date(active.started_at).getTime()) / 1000);
+        const elapsed = Math.floor((Date.now() - toUTC(active.started_at)) / 1000);
         const rem = Math.max(0, pomoDurationSec - elapsed);
         setSessionId(active.id);
         setStartedAt(active.started_at);
@@ -162,7 +439,7 @@ function TimerTab({ onSessionComplete }: TimerTabProps) {
     if (timerState === 'RUNNING') {
       intervalRef.current = setInterval(() => {
         if (startedAt) {
-          const rawElapsed = Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000);
+          const rawElapsed = Math.floor((Date.now() - toUTC(startedAt)) / 1000);
           const pausedSec  = Math.floor(totalPausedMsRef.current / 1000);
           const elapsed    = rawElapsed - pausedSec;
           const rem = Math.max(0, pomoDurationSec - elapsed);
@@ -190,7 +467,7 @@ function TimerTab({ onSessionComplete }: TimerTabProps) {
   }, [timerState, startedAt, sessionId]);
 
   function handleAutoComplete(id: number, sa: string) {
-    const elapsedMs   = Date.now() - new Date(sa).getTime() - totalPausedMsRef.current;
+    const elapsedMs   = Date.now() - toUTC(sa) - totalPausedMsRef.current;
     const durationMin = Math.round(elapsedMs / 60000);
     api.focus.stopSession(id, durationMin).then(() => {
       showToast(`${t('focus.completed')} +${durationMin} min`);
@@ -249,7 +526,7 @@ function TimerTab({ onSessionComplete }: TimerTabProps) {
     if (sessionId == null || startedAt == null) { resetTimer(); return; }
     // If we're stopping while paused, count that pause segment too
     const extraPausedMs = pausedStartRef.current != null ? Date.now() - pausedStartRef.current : 0;
-    const elapsedMs     = Date.now() - new Date(startedAt).getTime() - totalPausedMsRef.current - extraPausedMs;
+    const elapsedMs     = Date.now() - toUTC(startedAt) - totalPausedMsRef.current - extraPausedMs;
     const durationMin   = Math.max(1, Math.round(elapsedMs / 60000));
     try {
       await api.focus.stopSession(sessionId, durationMin);
@@ -586,6 +863,7 @@ function SessionRow({ session, onDelete }: { session: FocusSession; onDelete: (i
 export default function FocusPage() {
   const { t } = useT();
   const [tab, setTab] = useState<'timer' | 'history'>('timer');
+  const [timerMode, setTimerMode] = useState<'pomodoro' | 'session'>('pomodoro');
   const [refreshKey, setRefreshKey] = useState(0);
 
   function handleSessionComplete() {
@@ -611,7 +889,26 @@ export default function FocusPage() {
       />
 
       <div style={{ flex: 1, overflowY: 'auto' }}>
-        {tab === 'timer'   && <TimerTab key={refreshKey} onSessionComplete={handleSessionComplete} />}
+        {tab === 'timer' && (
+          <div style={{ padding: '0 28px' }}>
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: 20 }}>
+              <SegmentedControl
+                value={timerMode}
+                options={[
+                  { value: 'pomodoro', label: t('focus.modePomodoro') },
+                  { value: 'session',  label: t('focus.modeSession') },
+                ]}
+                onChange={setTimerMode}
+                minWidth={300}
+              />
+            </div>
+            {timerMode === 'pomodoro' ? (
+              <TimerTab key={`pomo-${refreshKey}`} onSessionComplete={handleSessionComplete} />
+            ) : (
+              <SessionTimerTab key={`sess-${refreshKey}`} onSessionComplete={handleSessionComplete} />
+            )}
+          </div>
+        )}
         {tab === 'history' && <HistoryTab />}
       </div>
     </div>

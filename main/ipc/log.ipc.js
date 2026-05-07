@@ -4,6 +4,20 @@ const { getDb } = require('../db');
 const { pushUndo } = require('./undo.ipc');
 const { isPantryEnabled, deductFoodFEFO } = require('../lib/pantryFefo');
 const { logAction } = require('../lib/actionLog');
+const { updateSectionStreak } = require('./streak-utils');
+const { addPointsInternal } = require('./gamification.ipc');
+
+function applyDietStreak(db, date) {
+  try {
+    const { streak, isNew, milestone, milestonePoints } = updateSectionStreak(db, 'diet', date);
+    if (isNew) {
+      addPointsInternal(db, 'section_streak', 'streak_daily_diet', 5, { section: 'diet', streak });
+      if (milestone) {
+        addPointsInternal(db, 'section_streak', `streak_${milestone}_diet`, milestonePoints, { section: 'diet', streak });
+      }
+    }
+  } catch (_) {}
+}
 
 // Use local date to avoid UTC timezone bug
 const today = () => {
@@ -129,13 +143,14 @@ function registerLogIpc() {
         logAction(db, 'log:add', { food_name: food?.name, grams, details: { date: d, meal: meal || 'AfternoonSnack' } });
       }
     })();
+    if (s === 'logged') applyDietStreak(db, d);
     return { id: logId, shortage, shortage_food, events };
   });
 
   ipcMain.handle('log:addQuick', (_, { food, grams, meal, date }) => {
     const db = getDb();
     const d = date || today();
-    return db.transaction(() => {
+    const result = db.transaction(() => {
       // Placeholder food rows use a unique internal name so the user's chosen name
       // stays free for a real food entry later. display_name carries the label.
       const internalName = `__qa_${crypto.randomUUID()}__`;
@@ -150,6 +165,8 @@ function registerLogIpc() {
       }
       return { id: logResult.lastInsertRowid, food_id: foodResult.lastInsertRowid, shortage: 0 };
     })();
+    applyDietStreak(db, d);
+    return result;
   });
 
   ipcMain.handle('log:update', (_, { id, food_id, grams, meal }) => {

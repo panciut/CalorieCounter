@@ -165,6 +165,34 @@ function registerUndoIpc() {
           db.prepare('UPDATE daily_energy SET active_kcal = ? WHERE date = ?')
             .run(prevCalories, data.date);
         } catch (_) {}
+        if (data.old_exercise_row) {
+          db.prepare(`
+            INSERT OR REPLACE INTO exercises
+              (id, date, type, duration_min, calories_burned, notes, source, workout_session_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          `).run(
+            data.old_exercise_row.id,
+            data.old_exercise_row.date,
+            data.old_exercise_row.type,
+            data.old_exercise_row.duration_min,
+            data.old_exercise_row.calories_burned,
+            data.old_exercise_row.notes,
+            data.old_exercise_row.source,
+            data.old_exercise_row.workout_session_id ?? null
+          );
+          db.prepare('DELETE FROM exercise_sets WHERE exercise_id = ?').run(data.old_exercise_row.id);
+          if (data.old_exercise_sets?.length) {
+            const insertSet = db.prepare(`
+              INSERT INTO exercise_sets (id, exercise_id, set_number, reps, weight_kg)
+              VALUES (?, ?, ?, ?, ?)
+            `);
+            for (const set of data.old_exercise_sets) {
+              insertSet.run(set.id, set.exercise_id, set.set_number, set.reps, set.weight_kg);
+            }
+          }
+        } else {
+          db.prepare('DELETE FROM exercises WHERE workout_session_id = ?').run(data.id);
+        }
         return { action, description: 'workout session end' };
 
       case 'workouts:deleteSession':
@@ -189,6 +217,32 @@ function registerUndoIpc() {
               s.id, s.session_id, s.exercise_id, s.set_idx,
               s.reps, s.weight_kg, s.distance_km, s.duration_sec, s.rest_sec
             );
+          }
+        }
+        if (data.exerciseRow) {
+          db.prepare(`
+            INSERT INTO exercises
+              (id, date, type, duration_min, calories_burned, notes, source, workout_session_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          `).run(
+            data.exerciseRow.id,
+            data.exerciseRow.date,
+            data.exerciseRow.type,
+            data.exerciseRow.duration_min,
+            data.exerciseRow.calories_burned,
+            data.exerciseRow.notes,
+            data.exerciseRow.source,
+            data.exerciseRow.workout_session_id ?? null
+          );
+          if (data.exerciseSets?.length) {
+            const insertExerciseSet = db.prepare(`
+              INSERT INTO exercise_sets
+                (id, exercise_id, set_number, reps, weight_kg)
+              VALUES (?, ?, ?, ?, ?)
+            `);
+            for (const set of data.exerciseSets) {
+              insertExerciseSet.run(set.id, set.exercise_id, set.set_number, set.reps, set.weight_kg);
+            }
           }
         }
         return { action, description: 'workout session delete' };

@@ -1,5 +1,6 @@
 const { ipcMain } = require('electron');
 const { getDb } = require('../db');
+const { getExerciseLogEntriesWithWorkoutSessions, deleteWorkoutSessionExerciseLog, syncWorkoutSessionToExerciseLog } = require('./workout-log-sync');
 
 const localDate = () => {
   const d = new Date();
@@ -25,19 +26,19 @@ function registerExercisesIpc() {
     const db = getDb();
     const d = date || localDate();
     const rows = db.prepare('SELECT * FROM exercises WHERE date = ? ORDER BY id').all(d);
-    return withSets(db, rows);
+    return withSets(db, getExerciseLogEntriesWithWorkoutSessions(db, rows, d, d));
   });
 
   ipcMain.handle('exercises:getRange', (_, { startDate, endDate }) => {
     const db = getDb();
     const rows = db.prepare('SELECT * FROM exercises WHERE date BETWEEN ? AND ? ORDER BY date, id').all(startDate, endDate);
-    return withSets(db, rows);
+    return withSets(db, getExerciseLogEntriesWithWorkoutSessions(db, rows, startDate, endDate));
   });
 
   ipcMain.handle('exercises:add', (_, { date, type, duration_min, calories_burned, notes, sets }) => {
     const db = getDb();
     const d = date || localDate();
-    return db.transaction(() => {
+    const result = db.transaction(() => {
       const { lastInsertRowid } = db.prepare(
         'INSERT INTO exercises (date, type, duration_min, calories_burned, notes, source) VALUES (?, ?, ?, ?, ?, ?)'
       ).run(d, type, duration_min || 0, calories_burned || 0, notes || null, 'manual');
@@ -47,17 +48,63 @@ function registerExercisesIpc() {
       }
       return { id: lastInsertRowid };
     })();
+    
+    // Update streak for workouts based on this exercise logging
+    try {
+      const minDur = duration_min || 0;
+      if (minDur >= 10) { // arbitrary sensible threshold for a single exercise to count as workout
+        const { streak, isNew, milestone, milestonePoints } = require('./streak-utils').updateSectionStreak(db, 'workout', d);
+        if (isNew) {
+          try {
+            const { addPointsInternal } = require('./gamification.ipc.js');
+            addPointsInternal(db, 'section_streak', 'streak_daily_workout', 5, { section: 'workout', streak });
+            if (milestone) addPointsInternal(db, 'section_streak', `streak_${milestone}_workout`, milestonePoints, { section: 'workout', streak });
+          } catch (_) {}
+        }
+      }
+    } catch (_) {}
+
+    return result;
   });
 
   ipcMain.handle('exercises:update', (_, { id, type, duration_min, calories_burned, notes }) => {
-    getDb().prepare(
-      'UPDATE exercises SET type=?, duration_min=?, calories_burned=?, notes=? WHERE id=?'
-    ).run(type, duration_min, calories_burned, notes || null, id);
+    const db = getDb();
+    const row = id < 0
+      ? db.prepare('SELECT * FROM exercises WHERE workout_session_id = ?').get(-id)
+      : db.prepare('SELECT * FROM exercises WHERE id = ?').get(id);
+
+    if (id < 0) {
+      db.prepare(
+        'UPDATE workout_sessions SET duration_min=?, calories_burned=?, note=? WHERE id=?'
+      ).run(duration_min, calories_burned, notes || null, -id);
+      syncWorkoutSessionToExerciseLog(db, -id);
+    } else if (row?.workout_session_id != null) {
+      db.prepare(
+        'UPDATE workout_sessions SET duration_min=?, calories_burned=?, note=? WHERE id=?'
+      ).run(duration_min, calories_burned, notes || null, row.workout_session_id);
+      syncWorkoutSessionToExerciseLog(db, row.workout_session_id);
+    } else {
+      db.prepare(
+        'UPDATE exercises SET type=?, duration_min=?, calories_burned=?, notes=? WHERE id=?'
+      ).run(type, duration_min, calories_burned, notes || null, id);
+    }
     return { ok: true };
   });
 
   ipcMain.handle('exercises:delete', (_, { id }) => {
-    getDb().prepare('DELETE FROM exercises WHERE id = ?').run(id);
+    const db = getDb();
+    if (id < 0) {
+      deleteWorkoutSessionExerciseLog(db, -id);
+      db.prepare('DELETE FROM workout_sessions WHERE id = ?').run(-id);
+    } else {
+      const row = db.prepare('SELECT workout_session_id FROM exercises WHERE id = ?').get(id);
+      if (row?.workout_session_id != null) {
+        deleteWorkoutSessionExerciseLog(db, row.workout_session_id);
+        db.prepare('DELETE FROM workout_sessions WHERE id = ?').run(row.workout_session_id);
+      } else {
+        db.prepare('DELETE FROM exercises WHERE id = ?').run(id);
+      }
+    }
     return { ok: true };
   });
 

@@ -1,6 +1,9 @@
 const { ipcMain } = require('electron');
 const { getDb } = require('../db');
 const { pushUndo } = require('./undo.ipc');
+const { updateSectionStreak } = require('./streak-utils');
+const { addPointsInternal } = require('./gamification.ipc');
+const { syncWorkoutSessionToExerciseLog, deleteWorkoutSessionExerciseLog } = require('./workout-log-sync');
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -42,6 +45,10 @@ function registerWorkoutsIpc() {
     const db = getDb();
     const before = db.prepare('SELECT * FROM workout_sessions WHERE id = ?').get(id);
     if (!before) return { ok: false };
+    const syncedExercise = db.prepare('SELECT * FROM exercises WHERE workout_session_id = ?').get(id);
+    const syncedSets = syncedExercise
+      ? db.prepare('SELECT * FROM exercise_sets WHERE exercise_id = ? ORDER BY set_number ASC, id ASC').all(syncedExercise.id)
+      : [];
 
     pushUndo('workouts:endSession', {
       id,
@@ -51,6 +58,8 @@ function registerWorkoutsIpc() {
       old_perceived_effort:before.perceived_effort,
       old_note:           before.note,
       date:               before.date,
+      old_exercise_row:   syncedExercise || null,
+      old_exercise_sets:  syncedSets,
     });
 
     db.prepare(`
@@ -69,9 +78,24 @@ function registerWorkoutsIpc() {
       id
     );
 
+    syncWorkoutSessionToExerciseLog(db, id);
+
     // Update daily_energy active_kcal if calories provided
     if (calories_burned != null) {
       updateDailyEnergyWorkout(db, before.date, calories_burned);
+    }
+
+    const minDur = duration_min ?? 0;
+    if (minDur >= 20) {
+      try {
+        const { streak, isNew, milestone, milestonePoints } = updateSectionStreak(db, 'workout', before.date);
+        if (isNew) {
+          addPointsInternal(db, 'section_streak', 'streak_daily_workout', 5, { section: 'workout', streak });
+          if (milestone) {
+            addPointsInternal(db, 'section_streak', `streak_${milestone}_workout`, milestonePoints, { section: 'workout', streak });
+          }
+        }
+      } catch (_) {}
     }
 
     return getSessionWithSets(db, id);
@@ -154,7 +178,12 @@ function registerWorkoutsIpc() {
     const row = db.prepare('SELECT * FROM workout_sessions WHERE id = ?').get(id);
     if (!row) return { ok: false };
     const sets = db.prepare('SELECT * FROM workout_exercise_sets WHERE session_id = ?').all(id);
-    pushUndo('workouts:deleteSession', { row, sets });
+    const exerciseRow = db.prepare('SELECT * FROM exercises WHERE workout_session_id = ?').get(id);
+    const exerciseSets = exerciseRow
+      ? db.prepare('SELECT * FROM exercise_sets WHERE exercise_id = ? ORDER BY set_number ASC, id ASC').all(exerciseRow.id)
+      : [];
+    pushUndo('workouts:deleteSession', { row, sets, exerciseRow: exerciseRow || null, exerciseSets });
+    deleteWorkoutSessionExerciseLog(db, id);
     db.prepare('DELETE FROM workout_sessions WHERE id = ?').run(id);
     return { ok: true };
   });

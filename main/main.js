@@ -34,7 +34,7 @@ const registerHabitsIpc          = require('./ipc/habits.ipc');
 const registerFocusIpc           = require('./ipc/focus.ipc');
 const registerMoodIpc            = require('./ipc/mood.ipc');
 const registerWorkoutsIpc        = require('./ipc/workouts.ipc');
-const registerGamificationIpc    = require('./ipc/gamification.ipc');
+const { registerGamificationIpc } = require('./ipc/gamification.ipc');
 
 let mainWindow;
 

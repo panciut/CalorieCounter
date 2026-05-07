@@ -26,6 +26,7 @@ import PantryWidget from '../components/dashboard/PantryWidget';
 import WeightWidget from '../components/dashboard/WeightWidget';
 import CollapsibleSection from '../components/dashboard/CollapsibleSection';
 import GamificationCard from '../components/dashboard/GamificationCard';
+import SectionStreaksCard from '../components/dashboard/SectionStreaksCard';
 import SleepCard from '../components/dashboard/SleepCard';
 import TasksCard from '../components/dashboard/TasksCard';
 import HabitsCard from '../components/dashboard/HabitsCard';
@@ -569,13 +570,15 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
       <div style={{ flex: 1, overflowY: 'auto', padding: '20px 28px 60px' }} className="hide-scrollbar">
         <div style={{ maxWidth: 1280, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
 
-          {/* ── QUICK LOG STRIP ─────────────────────────────────────────── */}
-          <QuickLogStrip
-            favorites={favorites}
-            frequent={frequent}
-            onQuickLog={quickLog}
-            onNavigateFoods={() => navigate('foods')}
-          />
+          {/* ── GAMIFICATION ────────────────────────────────────────────── */}
+          <section>
+            <GamificationCard />
+          </section>
+
+          {/* ── SECTION STREAKS ─────────────────────────────────────────── */}
+          <section>
+            <SectionStreaksCard />
+          </section>
 
           {/* ── HERO BENTO ──────────────────────────────────────────────── */}
           <section className="dash-hero-grid">
@@ -611,6 +614,20 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
             </div>
           </section>
 
+          {/* ── TASKS + HABITS ──────────────────────────────────────────── */}
+          <section className="dash-secondary-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
+            <TasksCard />
+            <HabitsCard />
+          </section>
+
+          {/* ── QUICK LOG STRIP ─────────────────────────────────────────── */}
+          <QuickLogStrip
+            favorites={favorites}
+            frequent={frequent}
+            onQuickLog={quickLog}
+            onNavigateFoods={() => navigate('foods')}
+          />
+
           {/* ── DIARY TABLE ─────────────────────────────────────────────── */}
           <DiaryTable
             mealGroups={mealGroups}
@@ -626,30 +643,23 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
             onCopyDay={handleCopyDay}
           />
 
+          {/* ── LIFESTYLE: Sleep · Focus · Mood ─────────────────────────── */}
+          <section className="dash-secondary-grid">
+            <SleepCard />
+            <FocusCard />
+            <MoodCard />
+          </section>
+
+          {/* ── WORKOUT ─────────────────────────────────────────────────── */}
+          <section>
+            <WorkoutCard />
+          </section>
+
           {/* ── SECONDARY BENTO ─────────────────────────────────────────── */}
           <section className="dash-secondary-grid">
             <SupplementsWidget supplements={supplements} onTake={handleTakeSuppl} />
             <PantryWidget enabled={settings.pantry_enabled !== 0} lowItems={pantryLow} />
             <WeightWidget weightKg={weightKg} weightTrend={weightTrend} />
-          </section>
-
-          {/* ── GAMIFICATION ────────────────────────────────────────────── */}
-          <section>
-            <GamificationCard />
-          </section>
-
-          {/* ── LIFESTYLE ROW 1: Sleep · Focus · Tasks ───────────────────── */}
-          <section className="dash-secondary-grid">
-            <SleepCard />
-            <FocusCard />
-            <TasksCard />
-          </section>
-
-          {/* ── LIFESTYLE ROW 2: Habits · Mood · Workout ─────────────────── */}
-          <section className="dash-secondary-grid">
-            <HabitsCard />
-            <MoodCard />
-            <WorkoutCard />
           </section>
 
           {/* ── COLLAPSIBLES ────────────────────────────────────────────── */}

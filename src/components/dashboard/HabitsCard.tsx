@@ -3,11 +3,8 @@ import { api } from '../../api';
 import { useT } from '../../i18n/useT';
 import { useNavigate } from '../../hooks/useNavigate';
 import { cardOuter, eyebrow } from '../../lib/fbUI';
+import { today as todayStr } from '../../lib/dateUtil';
 import type { Habit, HabitWeekStat } from '../../types';
-
-function todayStr(): string {
-  return new Date().toISOString().slice(0, 10);
-}
 
 export default function HabitsCard() {
   const { t } = useT();

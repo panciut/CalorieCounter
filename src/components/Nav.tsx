@@ -75,9 +75,9 @@ const DEFAULT_ORDER: NavItem[] = [
 
 const GROUPS = [
   { id: 'track',     label: 'Diario' },
+  { id: 'lifestyle', label: 'Lifestyle' },
   { id: 'plan',      label: 'Pianificazione' },
   { id: 'health',    label: 'Salute' },
-  { id: 'lifestyle', label: 'Lifestyle' },
   { id: 'system',    label: 'Sistema' },
 ];
 

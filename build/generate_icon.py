@@ -1,84 +1,101 @@
-"""Generate a calorie counter flame icon - red/orange flame on dark grey."""
+"""Generate FoodBuddy icon - fork + leaf on dark green background."""
 from PIL import Image, ImageDraw
 import os
 
 SIZE = 1024
-CENTER = SIZE // 2
+C = SIZE // 2
 
 img = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
 draw = ImageDraw.Draw(img)
 
-# Background: dark grey rounded rectangle
-pad = 40
-corner_r = 200
+BG    = (15, 52, 40)
+CREAM = (245, 242, 235)
+GREEN = (82, 183, 136)
+
+# Background
+draw.rounded_rectangle([40, 40, 984, 984], radius=200, fill=BG)
+
+# --- Fork (left-center) ---
+fx = C - 80          # fork axis x
+fy0 = C - 310        # top of tines
+
+TINE_W = 34
+TINE_H = 230
+GAP    = 22
+NECK_W = 58
+NECK_H = 70
+HDL_W  = 62
+HDL_H  = 260
+
+# 3 tines
+for i in (-1, 0, 1):
+    tx = fx + i * (TINE_W + GAP)
+    draw.rounded_rectangle(
+        [tx - TINE_W//2, fy0, tx + TINE_W//2, fy0 + TINE_H],
+        radius=TINE_W//2,
+        fill=CREAM,
+    )
+
+# Neck
+fy_neck = fy0 + TINE_H - 10
 draw.rounded_rectangle(
-    [pad, pad, SIZE - pad, SIZE - pad],
-    radius=corner_r,
-    fill=(45, 45, 48),
+    [fx - NECK_W//2, fy_neck, fx + NECK_W//2, fy_neck + NECK_H],
+    radius=18,
+    fill=CREAM,
 )
 
-# Main outer flame (red)
-cx, cy = CENTER, CENTER + 30
-scale = 3.2
+# Handle
+fy_hdl = fy_neck + NECK_H - 10
+draw.rounded_rectangle(
+    [fx - HDL_W//2, fy_hdl, fx + HDL_W//2, fy_hdl + HDL_H],
+    radius=HDL_W//2,
+    fill=CREAM,
+)
 
-pts = [
-    (0, -120), (15, -115), (30, -100), (42, -80),
-    (55, -55), (65, -30), (72, -5), (75, 15),
-    (76, 35), (74, 55), (68, 72), (58, 86),
-    (45, 97), (30, 104), (15, 108), (0, 110),
-    (-15, 108), (-30, 104), (-45, 97), (-58, 86),
-    (-68, 72), (-74, 55), (-76, 35), (-75, 15),
-    (-72, -5), (-65, -30), (-55, -55), (-42, -80),
-    (-30, -100), (-15, -115),
-]
-flame_outer = [(cx + p[0] * scale, cy + p[1] * scale) for p in pts]
-draw.polygon(flame_outer, fill=(220, 50, 40))  # red
+# --- Leaf (right side) ---
+lx = C + 200
+ly = C - 80
+LW, LH = 110, 220
 
-# Inner flame (orange)
-inner_scale = 1.8
-inner_cy = cy + 60
-inner_pts = [
-    (0, -100), (12, -95), (24, -82), (35, -62),
-    (44, -38), (50, -12), (52, 10), (50, 32),
-    (45, 52), (37, 68), (26, 80), (14, 88),
-    (0, 92),
-    (-14, 88), (-26, 80), (-37, 68), (-45, 52),
-    (-50, 32), (-52, 10), (-50, -12), (-44, -38),
-    (-35, -62), (-24, -82), (-12, -95),
-]
-flame_inner = [(cx + p[0] * inner_scale, inner_cy + p[1] * inner_scale) for p in inner_pts]
-draw.polygon(flame_inner, fill=(255, 140, 30))  # orange
+draw.ellipse([lx - LW//2, ly - LH//2, lx + LW//2, ly + LH//2], fill=GREEN)
+# Central vein
+draw.line([(lx, ly - LH//2 + 18), (lx, ly + LH//2 - 18)], fill=BG, width=9)
+# Side veins
+for sy, sx_sign in [(-50, -1), (-50, 1), (0, -1), (0, 1), (50, -1), (50, 1)]:
+    draw.line(
+        [(lx, ly + sy), (lx + sx_sign * (LW//2 - 14), ly + sy - 30 * sx_sign * 0 - 25)],
+        fill=BG, width=5,
+    )
+# Stem
+draw.rounded_rectangle(
+    [lx - 9, ly + LH//2 - 12, lx + 9, ly + LH//2 + 65],
+    radius=9,
+    fill=GREEN,
+)
 
-# Core flame (bright yellow-orange)
-core_scale = 0.9
-core_cy = cy + 140
-core_pts = [
-    (0, -90), (10, -82), (20, -65), (28, -42),
-    (33, -18), (35, 5), (33, 28), (28, 48),
-    (20, 63), (10, 74), (0, 78),
-    (-10, 74), (-20, 63), (-28, 48), (-33, 28),
-    (-35, 5), (-33, -18), (-28, -42), (-20, -65),
-    (-10, -82),
-]
-flame_core = [(cx + p[0] * core_scale, core_cy + p[1] * core_scale) for p in core_pts]
-draw.polygon(flame_core, fill=(255, 210, 80))  # yellow-orange
+# ── Save 1024x1024 PNG ──────────────────────────────────────────────
+build_dir = os.path.dirname(__file__)
+icon_png = os.path.join(build_dir, "icon.png")
+img.save(icon_png, "PNG")
+print(f"Saved {icon_png}")
 
-# Save the 1024x1024 PNG
-icon_path = os.path.join(os.path.dirname(__file__), "icon.png")
-img.save(icon_path, "PNG")
-print(f"Saved {icon_path}")
-
-# Generate .iconset for macOS
-iconset_dir = os.path.join(os.path.dirname(__file__), "icon.iconset")
+# ── Generate .iconset (macOS) ────────────────────────────────────────
+iconset_dir = os.path.join(build_dir, "icon.iconset")
 os.makedirs(iconset_dir, exist_ok=True)
-
-sizes = [16, 32, 64, 128, 256, 512, 1024]
-for s in sizes:
-    resized = img.resize((s, s), Image.LANCZOS)
-    resized.save(os.path.join(iconset_dir, f"icon_{s}x{s}.png"), "PNG")
+for s in [16, 32, 64, 128, 256, 512, 1024]:
+    img.resize((s, s), Image.LANCZOS).save(
+        os.path.join(iconset_dir, f"icon_{s}x{s}.png"), "PNG"
+    )
     if s <= 512:
-        s2 = s * 2
-        resized2 = img.resize((s2, s2), Image.LANCZOS)
-        resized2.save(os.path.join(iconset_dir, f"icon_{s}x{s}@2x.png"), "PNG")
+        img.resize((s * 2, s * 2), Image.LANCZOS).save(
+            os.path.join(iconset_dir, f"icon_{s}x{s}@2x.png"), "PNG"
+        )
+print(f"Iconset at {iconset_dir}")
 
-print(f"Iconset created at {iconset_dir}")
+# ── Generate .ico (Windows) ─────────────────────────────────────────
+ico_path = os.path.join(build_dir, "icon.ico")
+img.convert("RGBA").save(
+    ico_path, format="ICO",
+    sizes=[(256,256),(128,128),(64,64),(48,48),(32,32),(16,16)],
+)
+print(f"Saved {ico_path}")

@@ -71,11 +71,14 @@ export default function JournalPage() {
   const todayStr = today();
 
   const [existingEntry, setExistingEntry] = useState<MoodEntry | null>(null);
+  const [editing, setEditing]     = useState(false);
   const [moodVal, setMoodVal]     = useState<number | null>(null);
   const [energyVal, setEnergyVal] = useState<number | null>(null);
   const [stressVal, setStressVal] = useState<number | null>(null);
   const [note, setNote]           = useState('');
   const [saving, setSaving]       = useState(false);
+
+  const isEditMode = editing || !existingEntry;
 
   const [trendData, setTrendData] = useState<MoodTrendPoint[]>([]);
 
@@ -121,6 +124,7 @@ export default function JournalPage() {
         note: note.trim() || undefined,
       });
       setExistingEntry(entry);
+      setEditing(false);
       showToast(t('journal.saved'));
       // Refresh trend
       const from = addDays(todayStr, -13);
@@ -140,6 +144,7 @@ export default function JournalPage() {
     try {
       await api.mood.delete(todayStr);
       setExistingEntry(null);
+      setEditing(false);
       setMoodVal(null);
       setEnergyVal(null);
       setStressVal(null);
@@ -192,95 +197,103 @@ export default function JournalPage() {
         </h1>
       </div>
 
-      {/* Today's form */}
+      {/* Today's entry */}
       <div style={cardOuter}>
-        <div style={eyebrow}>{todayStr}</div>
-
-        {/* Mood picker */}
-        <RatingRow
-          label={t('journal.mood')}
-          value={moodVal}
-          onChange={setMoodVal}
-          renderButton={(n) => (
-            <span style={{ fontSize: 20 }}>{MOOD_EMOJIS[n - 1]}</span>
-          )}
-        />
-
-        {/* Energy picker */}
-        <RatingRow
-          label={t('journal.energy')}
-          value={energyVal}
-          onChange={setEnergyVal}
-          renderButton={(n, selected) => (
-            <span style={{
-              display: 'block',
-              width: 14, height: 14, borderRadius: '50%',
-              background: selected ? ENERGY_COLORS[n - 1] : 'var(--fb-border-strong, var(--fb-border))',
-              transition: 'background .18s cubic-bezier(0.16,1,0.3,1)',
-            }} />
-          )}
-        />
-
-        {/* Stress picker */}
-        <RatingRow
-          label={t('journal.stress')}
-          value={stressVal}
-          onChange={setStressVal}
-          renderButton={(n, selected) => (
-            <span style={{
-              display: 'block',
-              width: 14, height: 14, borderRadius: '50%',
-              background: selected ? STRESS_COLORS[n - 1] : 'var(--fb-border-strong, var(--fb-border))',
-              transition: 'background .18s cubic-bezier(0.16,1,0.3,1)',
-            }} />
-          )}
-        />
-
-        {/* Note */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--fb-text-2)' }}>
-            {t('journal.note')}
-          </label>
-          <textarea
-            ref={textareaRef}
-            value={note}
-            onChange={e => { setNote(e.target.value); autoResize(); }}
-            placeholder={t('journal.notePlaceholder')}
-            rows={3}
-            style={{
-              width: '100%', boxSizing: 'border-box',
-              background: 'var(--fb-card)', border: '1px solid var(--fb-border)',
-              color: 'var(--fb-text)', borderRadius: 10, padding: '8px 10px',
-              fontSize: 13, outline: 'none', resize: 'none', overflow: 'hidden',
-              fontFamily: 'var(--font-body)',
-              transition: 'border-color .25s ease',
-              lineHeight: 1.5,
-            }}
-            onFocus={e => { e.target.style.borderColor = 'var(--fb-accent)'; }}
-            onBlur={e  => { e.target.style.borderColor = 'var(--fb-border)'; }}
-          />
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={eyebrow}>{todayStr}</div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {existingEntry && !isEditMode && (
+              <button type="button" onClick={() => setEditing(true)}
+                style={{ background: 'transparent', border: '1px solid var(--fb-border)', color: 'var(--fb-text-2)', borderRadius: 6, padding: '3px 10px', fontSize: 11.5, cursor: 'pointer', fontFamily: 'var(--font-body)' }}>
+                {t('common.edit')}
+              </button>
+            )}
+            {existingEntry && (
+              <button type="button" onClick={handleDelete}
+                style={{ background: 'transparent', border: '1px solid var(--fb-red, #ef4444)', color: 'var(--fb-red, #ef4444)', borderRadius: 6, padding: '3px 10px', fontSize: 11.5, cursor: 'pointer', fontFamily: 'var(--font-body)' }}>
+                {t('common.delete')}
+              </button>
+            )}
+          </div>
         </div>
 
-        {/* Actions */}
-        <div style={{ display: 'flex', gap: 10 }}>
-          <button
-            type="button"
-            style={{ ...fbBtnPrimary, opacity: saving ? 0.7 : 1 }}
-            onClick={handleSave}
-            disabled={saving}
-          >
-            {t('common.save')}
-          </button>
-          {existingEntry && (
-            <button
-              type="button"
-              style={fbBtnGhost}
-              onClick={handleDelete}
-            >
-              {t('common.delete')}
-            </button>
-          )}
-        </div>
+        {/* ── VIEW MODE ── */}
+        {!isEditMode && existingEntry && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+              {existingEntry.mood != null && (
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 1, color: 'var(--fb-text-3)', textTransform: 'uppercase', marginBottom: 4 }}>{t('journal.mood')}</div>
+                  <span style={{ fontSize: 28 }}>{MOOD_EMOJIS[existingEntry.mood - 1]}</span>
+                </div>
+              )}
+              {existingEntry.energy != null && (
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 1, color: 'var(--fb-text-3)', textTransform: 'uppercase', marginBottom: 4 }}>{t('journal.energy')}</div>
+                  <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                    {[1,2,3,4,5].map(n => (
+                      <span key={n} style={{ width: 10, height: 10, borderRadius: '50%', display: 'block', background: n <= (existingEntry.energy ?? 0) ? ENERGY_COLORS[existingEntry.energy! - 1] : 'var(--fb-border)' }} />
+                    ))}
+                    <span style={{ fontSize: 11, color: 'var(--fb-text-3)', marginLeft: 2 }}>{existingEntry.energy}/5</span>
+                  </div>
+                </div>
+              )}
+              {existingEntry.stress != null && (
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 1, color: 'var(--fb-text-3)', textTransform: 'uppercase', marginBottom: 4 }}>{t('journal.stress')}</div>
+                  <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                    {[1,2,3,4,5].map(n => (
+                      <span key={n} style={{ width: 10, height: 10, borderRadius: '50%', display: 'block', background: n <= (existingEntry.stress ?? 0) ? STRESS_COLORS[existingEntry.stress! - 1] : 'var(--fb-border)' }} />
+                    ))}
+                    <span style={{ fontSize: 11, color: 'var(--fb-text-3)', marginLeft: 2 }}>{existingEntry.stress}/5</span>
+                  </div>
+                </div>
+              )}
+            </div>
+            {existingEntry.note && (
+              <p style={{ margin: 0, fontSize: 13, color: 'var(--fb-text-2)', fontStyle: 'italic', lineHeight: 1.6 }}>{existingEntry.note}</p>
+            )}
+          </div>
+        )}
+
+        {/* ── EDIT MODE ── */}
+        {isEditMode && (
+          <>
+            <RatingRow label={t('journal.mood')} value={moodVal} onChange={setMoodVal}
+              renderButton={(n) => <span style={{ fontSize: 20 }}>{MOOD_EMOJIS[n - 1]}</span>} />
+
+            <RatingRow label={t('journal.energy')} value={energyVal} onChange={setEnergyVal}
+              renderButton={(n, selected) => (
+                <span style={{ display: 'block', width: 14, height: 14, borderRadius: '50%', background: selected ? ENERGY_COLORS[n - 1] : 'var(--fb-border-strong, var(--fb-border))', transition: 'background .18s' }} />
+              )} />
+
+            <RatingRow label={t('journal.stress')} value={stressVal} onChange={setStressVal}
+              renderButton={(n, selected) => (
+                <span style={{ display: 'block', width: 14, height: 14, borderRadius: '50%', background: selected ? STRESS_COLORS[n - 1] : 'var(--fb-border-strong, var(--fb-border))', transition: 'background .18s' }} />
+              )} />
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--fb-text-2)' }}>{t('journal.note')}</label>
+              <textarea ref={textareaRef} value={note} onChange={e => { setNote(e.target.value); autoResize(); }}
+                placeholder={t('journal.notePlaceholder')} rows={3}
+                style={{ width: '100%', boxSizing: 'border-box', background: 'var(--fb-card)', border: '1px solid var(--fb-border)', color: 'var(--fb-text)', borderRadius: 10, padding: '8px 10px', fontSize: 13, outline: 'none', resize: 'none', overflow: 'hidden', fontFamily: 'var(--font-body)', transition: 'border-color .25s ease', lineHeight: 1.5 }}
+                onFocus={e => { e.target.style.borderColor = 'var(--fb-accent)'; }}
+                onBlur={e  => { e.target.style.borderColor = 'var(--fb-border)'; }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button type="button" style={{ ...fbBtnPrimary, opacity: saving ? 0.7 : 1 }} onClick={handleSave} disabled={saving}>
+                {t('common.save')}
+              </button>
+              {existingEntry && (
+                <button type="button" style={fbBtnGhost} onClick={() => setEditing(false)}>
+                  {t('common.cancel')}
+                </button>
+              )}
+            </div>
+          </>
+        )}
       </div>
 
       {/* 14-day trend */}

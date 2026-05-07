@@ -21,7 +21,19 @@
       "Bash(npm audit *)",
       "Bash(npx vite *)",
       "Bash(git checkout *)",
-      "Bash(git branch *)"
+      "Bash(git branch *)",
+      "Bash(python build/generate_icon.py)",
+      "PowerShell(npm run *)",
+      "PowerShell(cd \"C:\\\\Users\\\\nicol\\\\Desktop\\\\FoodBuddy\"; & \".\\\\node_modules\\\\electron-winstaller\\\\vendor\\\\rcedit.exe\" \"dist\\\\win-unpacked\\\\FoodBuddy.exe\" --set-icon \"build\\\\icon.ico\" 2>&1; echo \"Exit: $LASTEXITCODE\")",
+      "PowerShell(Copy-Item *)",
+      "Bash(Select-String -Pattern '\"name\"' -Path package-lock.json)",
+      "Bash(Select-Object -First 3)",
+      "Bash(node -e ' *)",
+      "Bash(git ls-tree *)",
+      "Bash(grep -v \"^--$\")",
+      "Bash(sqlite3 foodbuddy/calories.db \".tables\")",
+      "Bash(sqlite3 lifebuddy/calories.db \".tables\")",
+      "Bash(sqlite3 *)"
     ]
   }
 }

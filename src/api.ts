@@ -18,6 +18,7 @@ import type {
   MoodEntry, MoodTrendPoint,
   WorkoutSession, WorkoutExerciseSet, WorkoutWeekPoint,
   Achievement, UserLevel, PointEvent,
+  SectionStreak,
 } from './types';
 
 // Re-export for consumers that need it
@@ -377,5 +378,9 @@ export const api = {
     getStatus:      () => window.electronAPI.invoke('gamification:getStatus') as Promise<UserLevel>,
     getAchievements:() => window.electronAPI.invoke('gamification:getAchievements') as Promise<Achievement[]>,
     getWeekPoints:  () => window.electronAPI.invoke('gamification:getWeekPoints') as Promise<PointEvent[]>,
+  },
+
+  sectionStreaks: {
+    getAll: () => invoke<SectionStreak[]>('section_streaks:getAll'),
   },
 } as const;

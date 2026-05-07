@@ -1,6 +1,8 @@
 const { ipcMain } = require('electron');
 const { getDb } = require('../db');
 const { pushUndo } = require('./undo.ipc');
+const { updateSectionStreak } = require('./streak-utils');
+const { addPointsInternal } = require('./gamification.ipc');
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -25,7 +27,22 @@ function registerFocusIpc() {
       SET ended_at = datetime('now'), duration_min = ?, completed = 1
       WHERE id = ?
     `).run(duration_min, id);
-    return db.prepare('SELECT * FROM focus_sessions WHERE id = ?').get(id);
+    const session = db.prepare('SELECT * FROM focus_sessions WHERE id = ?').get(id);
+
+    if (duration_min >= 10) {
+      try {
+        const d = session?.date || today();
+        const { streak, isNew, milestone, milestonePoints } = updateSectionStreak(db, 'focus', d);
+        if (isNew) {
+          addPointsInternal(db, 'section_streak', 'streak_daily_focus', 5, { section: 'focus', streak });
+          if (milestone) {
+            addPointsInternal(db, 'section_streak', `streak_${milestone}_focus`, milestonePoints, { section: 'focus', streak });
+          }
+        }
+      } catch (_) {}
+    }
+
+    return session;
   });
 
   // ── Log manual session ──────────────────────────────────────────────────────
@@ -38,6 +55,19 @@ function registerFocusIpc() {
     `).run(d, d + 'T00:00:00', d + 'T00:00:00', duration_min, project, note);
     const id = result.lastInsertRowid;
     pushUndo('focus:logManual', { id });
+
+    if (duration_min >= 10) {
+      try {
+        const { streak, isNew, milestone, milestonePoints } = updateSectionStreak(db, 'focus', d);
+        if (isNew) {
+          addPointsInternal(db, 'section_streak', 'streak_daily_focus', 5, { section: 'focus', streak });
+          if (milestone) {
+            addPointsInternal(db, 'section_streak', `streak_${milestone}_focus`, milestonePoints, { section: 'focus', streak });
+          }
+        }
+      } catch (_) {}
+    }
+
     return { id };
   });
 

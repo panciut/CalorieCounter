@@ -83,7 +83,32 @@ function checkAndUnlockAchievements(db, module, context) {
     unlock('welcome');
   }
 
+  if (module === 'section_streak') {
+    const { section, streak } = context || {};
+    if (section && streak) {
+      if (streak >= 3)  unlock(`streak_3_${section}`);
+      if (streak >= 7)  unlock(`streak_7_${section}`);
+      if (streak >= 30) unlock(`streak_30_${section}`);
+    }
+  }
+
   return unlocked;
+}
+
+/**
+ * Add points directly on the DB (no IPC round-trip).
+ * Other IPC modules use this after updating streaks.
+ */
+function addPointsInternal(db, module, reason, points, context = {}) {
+  const today = new Date().toISOString().slice(0, 10);
+  db.prepare('INSERT INTO user_points (date, points, reason, module) VALUES (?, ?, ?, ?)').run(today, points, reason, module);
+  const row = db.prepare('SELECT total_points FROM user_level WHERE id = 1').get();
+  const newTotal = (row?.total_points || 0) + points;
+  const lv = computeLevel(newTotal);
+  db.prepare('UPDATE user_level SET total_points = ?, level = ?, level_name = ?, last_activity_date = ? WHERE id = 1')
+    .run(newTotal, lv.level, lv.name, today);
+  const newAchievements = checkAndUnlockAchievements(db, module, context);
+  return { total_points: newTotal, level: lv, new_achievements: newAchievements };
 }
 
 function registerGamificationIpc() {
@@ -135,6 +160,22 @@ function registerGamificationIpc() {
     `).all();
     return rows;
   });
+
+  ipcMain.handle('section_streaks:getAll', () => {
+    const db = getDb();
+    const rows = db.prepare('SELECT * FROM section_streaks').all();
+    const bySection = {};
+    for (const r of rows) bySection[r.section] = r;
+    const today = new Date().toISOString().slice(0, 10);
+    return ['sleep', 'diet', 'focus', 'workout'].map(section => ({
+      section,
+      current_streak:       bySection[section]?.current_streak ?? 0,
+      longest_streak:       bySection[section]?.longest_streak ?? 0,
+      last_completed_date:  bySection[section]?.last_completed_date ?? null,
+      completed_today:      bySection[section]?.last_completed_date === today,
+    }));
+  });
 }
 
-module.exports = registerGamificationIpc;
+module.exports = { registerGamificationIpc: registerGamificationIpc, addPointsInternal };
+

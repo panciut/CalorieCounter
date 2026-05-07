@@ -120,7 +120,8 @@ export interface Exercise {
   duration_min: number;
   calories_burned: number;
   notes: string | null;
-  source: 'manual' | 'apple_health';
+  source: 'manual' | 'apple_health' | 'workout_session';
+  workout_session_id?: number | null;
   sets?: ExerciseSet[];
 }
 
@@ -662,7 +663,7 @@ export interface FocusSession {
   started_at: string;
   ended_at: string | null;
   duration_min: number;
-  type: 'pomodoro' | 'manual';
+  type: 'pomodoro' | 'manual' | 'session';
   project: string | null;
   note: string | null;
   completed: number; // 0 or 1
@@ -763,4 +764,12 @@ export interface PointEvent {
   date: string;
   total_points: number;
   reasons: string;
+}
+
+export interface SectionStreak {
+  section: 'sleep' | 'diet' | 'focus' | 'workout';
+  current_streak: number;
+  longest_streak: number;
+  last_completed_date: string | null;
+  completed_today: boolean;
 }

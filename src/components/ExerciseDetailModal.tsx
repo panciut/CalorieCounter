@@ -1,6 +1,7 @@
 import Modal from './Modal';
 import { useT } from '../i18n/useT';
 import type { ExerciseType } from '../types';
+import { useExerciseImages } from '../hooks/useExerciseImages';
 
 const CATEGORY_COLORS: Record<string, string> = {
   cardio:      'bg-blue-500/15 text-blue-400',
@@ -17,6 +18,7 @@ interface Props {
 
 export default function ExerciseDetailModal({ exercise, onClose, onEdit }: Props) {
   const { t } = useT();
+  const { images, loading } = useExerciseImages(exercise.name);
 
   const muscles = exercise.muscle_groups ? exercise.muscle_groups.split(',').filter(Boolean) : [];
   const equips  = exercise.equipment ? exercise.equipment.split(',').filter(Boolean) : [];
@@ -41,6 +43,21 @@ export default function ExerciseDetailModal({ exercise, onClose, onEdit }: Props
             </div>
           </div>
         </div>
+
+        {/* Visualizer (API images) */}
+        {!loading && images.length > 0 && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 my-2">
+            {images.slice(0, 2).map((src, i) => (
+              <img 
+                key={i} 
+                src={src} 
+                alt={`${exercise.name} Step ${i + 1}`}
+                className="w-full h-auto rounded-xl object-contain bg-white/5 border border-white/5 shadow-sm"
+                loading="lazy"
+              />
+            ))}
+          </div>
+        )}
 
         {/* Muscle groups */}
         {muscles.length > 0 && (

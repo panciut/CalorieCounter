@@ -2,15 +2,23 @@ const { ipcMain } = require('electron');
 const { getDb } = require('../db');
 const { pushUndo } = require('./undo.ipc');
 
-const today = () => new Date().toISOString().slice(0, 10);
+function localDateStr(d) {
+  const yy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yy}-${mm}-${dd}`;
+}
+
+const today = () => localDateStr(new Date());
 
 function getLast7Days(fromDate) {
   const days = [];
+  // Parse as local midnight by appending T00:00:00 (no Z)
   const base = new Date((fromDate || today()) + 'T00:00:00');
   for (let i = 6; i >= 0; i--) {
     const d = new Date(base);
     d.setDate(d.getDate() - i);
-    days.push(d.toISOString().slice(0, 10));
+    days.push(localDateStr(d)); // local date, not UTC
   }
   return days;
 }
@@ -141,12 +149,12 @@ function registerHabitsIpc() {
     // Allow streak to start from today or yesterday
     if (!dateSet.has(todayStr)) {
       d.setDate(d.getDate() - 1);
-      if (!dateSet.has(d.toISOString().slice(0, 10))) {
+      if (!dateSet.has(localDateStr(d))) {
         return { streak: 0 };
       }
     }
 
-    while (dateSet.has(d.toISOString().slice(0, 10))) {
+    while (dateSet.has(localDateStr(d))) {
       streak++;
       d.setDate(d.getDate() - 1);
     }
