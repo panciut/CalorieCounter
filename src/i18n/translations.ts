@@ -63,6 +63,7 @@ export const translations: Record<'en' | 'it', TranslationMap> = {
     'macro.fat':     'fat',
     'macro.fiber':   'fiber',
     'common.add':       'Add',
+    'common.error':     'Something went wrong',
     'common.save':      'Save',
     'common.cancel':    'Cancel',
     'common.delete':    'Delete',
@@ -711,6 +712,7 @@ export const translations: Record<'en' | 'it', TranslationMap> = {
     'journal.saved':        'Saved!',
     'journal.empty':        'No data',
     'journal.update':       'Update',
+    'journal.trend14':      'TREND · 14 DAYS',
   },
 
   it: {
@@ -773,6 +775,7 @@ export const translations: Record<'en' | 'it', TranslationMap> = {
     'macro.fat':     'grassi',
     'macro.fiber':   'fibre',
     'common.add':       'Aggiungi',
+    'common.error':     'Qualcosa è andato storto',
     'common.save':      'Salva',
     'common.cancel':    'Annulla',
     'common.delete':    'Elimina',
@@ -1420,5 +1423,6 @@ export const translations: Record<'en' | 'it', TranslationMap> = {
     'journal.saved':        'Salvato!',
     'journal.empty':        'Nessun dato',
     'journal.update':       'Aggiorna',
+    'journal.trend14':      'TREND · 14 GIORNI',
   },
 };

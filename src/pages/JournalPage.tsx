@@ -125,7 +125,7 @@ export default function JournalPage() {
       const rows = await api.mood.range(from, todayStr);
       setTrendData(rows);
     } catch {
-      // silent — toast would confuse error vs success
+      showToast(t('common.error') ?? 'Error');
     } finally {
       setSaving(false);
     }
@@ -144,7 +144,7 @@ export default function JournalPage() {
       const rows = await api.mood.range(from, todayStr);
       setTrendData(rows);
     } catch {
-      // silent
+      showToast(t('common.error') ?? 'Error');
     }
   }
 
@@ -280,7 +280,7 @@ export default function JournalPage() {
 
       {/* 14-day trend */}
       <div style={cardOuter}>
-        <div style={eyebrow}>TREND · 14 DAYS</div>
+        <div style={eyebrow}>{t('journal.trend14')}</div>
 
         {chartData.some(d => d.mood != null || d.energy != null || d.stress != null) ? (
           <ResponsiveContainer width="100%" height={200}>
