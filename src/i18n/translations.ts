@@ -684,6 +684,8 @@ export const translations: Record<'en' | 'it', TranslationMap> = {
     'habits.archiveHabit': 'Archive',
     'habits.deleteHabit':  'Delete',
     'habits.deleteConfirm':'Delete this habit and all its history?',
+    'habits.last90Days':  'Last 90 days',
+    'habits.thisWeek':    'This week',
   },
 
   it: {
@@ -1366,5 +1368,7 @@ export const translations: Record<'en' | 'it', TranslationMap> = {
     'habits.archiveHabit': 'Archivia',
     'habits.deleteHabit':  'Elimina',
     'habits.deleteConfirm':'Eliminare questa abitudine e tutta la cronologia?',
+    'habits.last90Days':  'Ultimi 90 giorni',
+    'habits.thisWeek':    'Questa settimana',
   },
 };

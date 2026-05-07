@@ -20,8 +20,8 @@ const PRESET_COLORS = [
 
 // ── Helper: date labels ───────────────────────────────────────────────────────
 function shortDay(dateStr: string): string {
-  const d = new Date(dateStr + 'T00:00:00');
-  return d.toLocaleDateString('it-IT', { weekday: 'short' }).slice(0, 2).toUpperCase();
+  return new Date(dateStr + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short' })
+    .toUpperCase().slice(0, 2);
 }
 
 // ── Inline form for create / edit ─────────────────────────────────────────────
@@ -548,7 +548,7 @@ export default function HabitsPage() {
                   {/* 90-day heatmap */}
                   <div>
                     <div style={{ fontSize: 10, color: 'var(--fb-text-3)', marginBottom: 6, fontWeight: 600, letterSpacing: 0.6, textTransform: 'uppercase' }}>
-                      ultimi 90 giorni
+                      {t('habits.last90Days')}
                     </div>
                     <HeatMap90 habit_id={habit.id} color={habit.color} />
                   </div>
@@ -557,7 +557,7 @@ export default function HabitsPage() {
                   {stat && (
                     <div>
                       <div style={{ fontSize: 10, color: 'var(--fb-text-3)', marginBottom: 6, fontWeight: 600, letterSpacing: 0.6, textTransform: 'uppercase' }}>
-                        questa settimana
+                        {t('habits.thisWeek')}
                       </div>
                       <div style={{ display: 'flex', gap: 6 }}>
                         {stat.checks.map(c => (

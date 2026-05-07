@@ -92,6 +92,29 @@ function registerUndoIpc() {
         );
         return { action, description: 'task delete' };
 
+      case 'habits:check':
+        db.prepare('DELETE FROM habit_logs WHERE habit_id = ? AND date = ?').run(data.habit_id, data.date);
+        return { action, description: 'habit check' };
+
+      case 'habits:uncheck':
+        db.prepare('INSERT OR IGNORE INTO habit_logs (habit_id, date, value) VALUES (?, ?, 1)').run(data.habit_id, data.date);
+        return { action, description: 'habit uncheck' };
+
+      case 'habits:delete':
+        db.prepare(
+          'INSERT INTO habits (id, name, icon, color, target_per_week, archived, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+        ).run(
+          data.row.id, data.row.name, data.row.icon, data.row.color,
+          data.row.target_per_week, data.row.archived, data.row.created_at
+        );
+        if (data.logs && data.logs.length) {
+          const insertLog = db.prepare('INSERT OR IGNORE INTO habit_logs (habit_id, date, value) VALUES (?, ?, ?)');
+          for (const log of data.logs) {
+            insertLog.run(log.habit_id, log.date, log.value);
+          }
+        }
+        return { action, description: 'habit delete' };
+
       default:
         return null;
     }

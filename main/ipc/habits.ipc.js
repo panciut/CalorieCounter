@@ -65,7 +65,10 @@ function registerHabitsIpc() {
   ipcMain.handle('habits:delete', (_, { id }) => {
     const db  = getDb();
     const row = db.prepare('SELECT * FROM habits WHERE id = ?').get(id);
-    if (row) pushUndo('habits:delete', { row });
+    if (row) {
+      const logs = db.prepare('SELECT * FROM habit_logs WHERE habit_id = ?').all(id);
+      pushUndo('habits:delete', { row, logs });
+    }
     db.prepare('DELETE FROM habit_logs WHERE habit_id = ?').run(id);
     db.prepare('DELETE FROM habits WHERE id = ?').run(id);
     return { ok: true };
