@@ -660,7 +660,7 @@ function initDb() {
         created_at TEXT DEFAULT (datetime('now'))
       );
 
-      CREATE TABLE IF NOT EXISTS focus_session (
+      CREATE TABLE IF NOT EXISTS focus_sessions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         date TEXT NOT NULL,
         started_at TEXT NOT NULL,
@@ -669,10 +669,11 @@ function initDb() {
         type TEXT NOT NULL DEFAULT 'pomodoro',
         project TEXT,
         note TEXT,
-        completed INTEGER DEFAULT 1
+        completed INTEGER DEFAULT 1,
+        created_at TEXT DEFAULT (datetime('now'))
       );
 
-      CREATE TABLE IF NOT EXISTS task (
+      CREATE TABLE IF NOT EXISTS tasks (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         date TEXT NOT NULL,
         title TEXT NOT NULL,
@@ -685,7 +686,7 @@ function initDb() {
         done_at TEXT
       );
 
-      CREATE TABLE IF NOT EXISTS habit (
+      CREATE TABLE IF NOT EXISTS habits (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
         icon TEXT DEFAULT '✓',
@@ -695,9 +696,9 @@ function initDb() {
         created_at TEXT DEFAULT (datetime('now'))
       );
 
-      CREATE TABLE IF NOT EXISTS habit_log (
+      CREATE TABLE IF NOT EXISTS habit_logs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        habit_id INTEGER NOT NULL REFERENCES habit(id) ON DELETE CASCADE,
+        habit_id INTEGER NOT NULL REFERENCES habits(id) ON DELETE CASCADE,
         date TEXT NOT NULL,
         value INTEGER DEFAULT 1,
         UNIQUE(habit_id, date)
@@ -713,10 +714,10 @@ function initDb() {
         created_at TEXT DEFAULT (datetime('now'))
       );
 
-      CREATE TABLE IF NOT EXISTS workout_session (
+      CREATE TABLE IF NOT EXISTS workout_sessions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         date TEXT NOT NULL,
-        plan_id INTEGER,
+        plan_id INTEGER REFERENCES workout_plans(id) ON DELETE SET NULL,
         started_at TEXT,
         ended_at TEXT,
         duration_min INTEGER,
@@ -726,10 +727,10 @@ function initDb() {
         created_at TEXT DEFAULT (datetime('now'))
       );
 
-      CREATE TABLE IF NOT EXISTS exercise_set (
+      CREATE TABLE IF NOT EXISTS workout_exercise_sets (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        session_id INTEGER NOT NULL REFERENCES workout_session(id) ON DELETE CASCADE,
-        exercise_id INTEGER,
+        session_id INTEGER NOT NULL REFERENCES workout_sessions(id) ON DELETE CASCADE,
+        exercise_id INTEGER REFERENCES exercise_types(id) ON DELETE SET NULL,
         set_idx INTEGER DEFAULT 0,
         reps INTEGER,
         weight_kg REAL,
@@ -737,8 +738,12 @@ function initDb() {
         duration_sec INTEGER,
         rest_sec INTEGER
       );
+
+      CREATE INDEX IF NOT EXISTS idx_focus_session_date ON focus_sessions(date);
+      CREATE INDEX IF NOT EXISTS idx_task_date ON tasks(date);
+      CREATE INDEX IF NOT EXISTS idx_workout_session_date ON workout_sessions(date);
     `);
-  } catch (_) {}
+  } catch (e) { console.error('lifestyle schema init failed:', e); }
 }
 
 module.exports = { getDb, getDbPath, closeDb, initDb };
