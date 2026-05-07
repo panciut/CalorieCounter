@@ -744,6 +744,67 @@ function initDb() {
       CREATE INDEX IF NOT EXISTS idx_workout_session_date ON workout_sessions(date);
     `);
   } catch (e) { console.error('lifestyle schema init failed:', e); }
+
+  // Gamification schema
+  try {
+    database.exec(`
+      CREATE TABLE IF NOT EXISTS user_points (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        date TEXT NOT NULL,
+        points INTEGER NOT NULL,
+        reason TEXT NOT NULL,
+        module TEXT NOT NULL,
+        created_at TEXT DEFAULT (datetime('now'))
+      );
+
+      CREATE TABLE IF NOT EXISTS achievements (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        key TEXT UNIQUE NOT NULL,
+        name TEXT NOT NULL,
+        description TEXT NOT NULL,
+        icon TEXT NOT NULL DEFAULT '🏆',
+        unlocked_at TEXT
+      );
+
+      CREATE TABLE IF NOT EXISTS user_level (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        total_points INTEGER DEFAULT 0,
+        level INTEGER DEFAULT 1,
+        level_name TEXT DEFAULT 'Principiante',
+        streak_days INTEGER DEFAULT 0,
+        last_activity_date TEXT
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_user_points_date ON user_points(date);
+    `);
+
+    database.prepare(`
+      INSERT OR IGNORE INTO user_level (id, total_points, level, level_name) VALUES (1, 0, 1, 'Principiante')
+    `).run();
+
+    const insertAchievement = database.prepare(
+      'INSERT OR IGNORE INTO achievements (key, name, description, icon) VALUES (?, ?, ?, ?)'
+    );
+    for (const [key, name, description, icon] of [
+      ['first_sleep',    'Prima notte',         'Hai tracciato il tuo primo sonno',          '🌙'],
+      ['sleep_7_streak', 'Dormitore seriale',   '7 notti consecutive ≥ 7h',                  '😴'],
+      ['sleep_quality',  'Sonno di qualità',    '5 notti con qualità ≥ 4',                   '⭐'],
+      ['first_task',     'Prima lista',         'Hai completato il tuo primo task',           '✅'],
+      ['task_master',    'Task master',         '50 task completati in totale',               '🎯'],
+      ['perfect_day',    'Giornata perfetta',   'Tutti i task completati in un giorno',       '🌟'],
+      ['first_habit',    'Primo abitudine',     'Hai creato la tua prima abitudine',          '💡'],
+      ['habit_7_streak', 'Abitudine costante',  '7 giorni di streak su una abitudine',        '🔥'],
+      ['habit_30_streak','Abitudine di ferro',  '30 giorni di streak su una abitudine',       '💪'],
+      ['first_focus',    'Prima sessione',      'Prima sessione di focus completata',          '🧠'],
+      ['focus_2h',       'Focus intenso',       '2h di focus in un giorno',                   '⚡'],
+      ['first_workout',  'Prima sudata',        'Primo allenamento completato',                '🏋️'],
+      ['workout_10',     'Allenamento costante','10 sessioni di allenamento',                  '🏆'],
+      ['first_journal',  'Primo diario',        'Prima nota nel diario',                       '📓'],
+      ['welcome',        'Primo passo',         'Benvenuto in LifeBuddy!',                     '🌟'],
+    ]) {
+      insertAchievement.run(key, name, description, icon);
+    }
+  } catch (e) { console.error('gamification schema failed:', e); }
 }
 
 module.exports = { getDb, getDbPath, closeDb, initDb };

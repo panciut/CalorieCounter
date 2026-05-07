@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef, type CSSProperties } from 're
 import { api } from '../api';
 import { useToast } from '../components/Toast';
 import { useT } from '../i18n/useT';
+import { useAchievementToast } from '../hooks/useAchievementToast';
 import { today, formatShortDate } from '../lib/dateUtil';
 import { cardOuter, eyebrow, serifItalic } from '../lib/fbUI';
 import { fbBtnPrimary, fbBtnGhost, fbBtnIcon } from '../lib/fbStyles';
@@ -71,6 +72,7 @@ function offsetDate(dateStr: string, days: number): string {
 export default function TasksPage() {
   const { showToast } = useToast();
   const { t } = useT();
+  const showAchievements = useAchievementToast();
 
   const [tasks, setTasks] = useState<Task[]>([]);
   const [date, setDate] = useState(today());
@@ -109,8 +111,15 @@ export default function TasksPage() {
 
   async function handleToggle(id: number) {
     try {
+      const task = tasks.find(t => t.id === id);
       await api.tasks.toggle(id);
       await loadTasks();
+      // Award points when completing a task (was undone → done)
+      if (task && task.done === 0) {
+        api.gamification.addPoints({ module: 'tasks', reason: 'task_completed', points: 5, context: { date: date } })
+          .then(r => { if (r.new_achievements?.length) showAchievements(r.new_achievements); })
+          .catch(() => {});
+      }
     } catch { /* silent */ }
   }
 

@@ -17,6 +17,7 @@ import type {
   FocusSession, FocusDayStats, FocusWeekPoint,
   MoodEntry, MoodTrendPoint,
   WorkoutSession, WorkoutExerciseSet, WorkoutWeekPoint,
+  Achievement, UserLevel, PointEvent,
 } from './types';
 
 // Re-export for consumers that need it
@@ -368,5 +369,13 @@ export const api = {
     dismissAll:      (keys?: string[]) => invoke<{ ok: boolean }>('notifications:dismissAll', { keys }),
     recentDismissed: (limit?: number) =>
                        invoke<DismissedNotification[]>('notifications:recentDismissed', { limit }),
+  },
+
+  gamification: {
+    addPoints:      (data: { module: string; reason: string; points: number; context?: Record<string, unknown> }) =>
+                      window.electronAPI.invoke('gamification:addPoints', data) as Promise<{ total_points: number; level: { level: number; name: string }; new_achievements: Achievement[] }>,
+    getStatus:      () => window.electronAPI.invoke('gamification:getStatus') as Promise<UserLevel>,
+    getAchievements:() => window.electronAPI.invoke('gamification:getAchievements') as Promise<Achievement[]>,
+    getWeekPoints:  () => window.electronAPI.invoke('gamification:getWeekPoints') as Promise<PointEvent[]>,
   },
 } as const;

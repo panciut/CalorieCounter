@@ -726,6 +726,17 @@ export const translations: Record<'en' | 'it', TranslationMap> = {
     'workouts.sessionsToday':'{n} sessions today',
     'workouts.start':        'Start',
     'exercise.tabSessions':  'Sessions',
+
+    'nav.achievements':         'Achievements',
+    'gamification.eyebrow':     'LEVEL',
+    'gamification.level':       'Level',
+    'gamification.todayPoints': '+{n} today',
+    'gamification.seeAll':      'See achievements',
+    'gamification.achievement': 'Achievement: {name}!',
+    'achievements.eyebrow':     'ACHIEVEMENTS',
+    'achievements.title':       'Your achievements',
+    'achievements.locked':      'Locked',
+    'achievements.nextLevel':   'points to next level',
   },
 
   it: {
@@ -1450,5 +1461,16 @@ export const translations: Record<'en' | 'it', TranslationMap> = {
     'workouts.sessionsToday':'{n} sessioni oggi',
     'workouts.start':        'Inizia',
     'exercise.tabSessions':  'Sessioni',
+
+    'nav.achievements':         'Traguardi',
+    'gamification.eyebrow':     'LIVELLO',
+    'gamification.level':       'Livello',
+    'gamification.todayPoints': '+{n} oggi',
+    'gamification.seeAll':      'Vedi traguardi',
+    'gamification.achievement': 'Traguardo: {name}!',
+    'achievements.eyebrow':     'TRAGUARDI',
+    'achievements.title':       'I tuoi traguardi',
+    'achievements.locked':      'Bloccato',
+    'achievements.nextLevel':   'punti al prossimo livello',
   },
 };

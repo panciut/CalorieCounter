@@ -576,7 +576,8 @@ export type PageName =
   | 'tasks'
   | 'habits'
   | 'focus'
-  | 'journal';
+  | 'journal'
+  | 'achievements';
 
 export type NotificationType =
   | 'pantry_expiry'
@@ -732,4 +733,33 @@ export interface WorkoutWeekPoint {
   duration_min: number;
   calories_burned: number;
   sessions: number;
+}
+
+// ── Gamification ──────────────────────────────────────────────────────────────
+
+export interface Achievement {
+  id: number;
+  key: string;
+  name: string;
+  description: string;
+  icon: string;
+  unlocked_at: string | null;
+}
+
+export interface UserLevel {
+  id: number;
+  total_points: number;
+  level: number;
+  level_name: string;
+  streak_days: number;
+  last_activity_date: string | null;
+  today_points: number;
+  next_level_min: number | null;
+  recent_achievements: Achievement[];
+}
+
+export interface PointEvent {
+  date: string;
+  total_points: number;
+  reasons: string;
 }

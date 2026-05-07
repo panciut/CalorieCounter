@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { api } from '../api';
 import { useT } from '../i18n/useT';
 import { useToast } from '../components/Toast';
+import { useAchievementToast } from '../hooks/useAchievementToast';
 import { useSettings } from '../hooks/useSettings';
 import { PageHeader, SegmentedControl, cardOuter, eyebrow } from '../lib/fbUI';
 import { fbBtnPrimary, fbBtnGhost } from '../lib/fbStyles';
@@ -106,6 +107,7 @@ interface TimerTabProps {
 function TimerTab({ onSessionComplete }: TimerTabProps) {
   const { t } = useT();
   const { showToast } = useToast();
+  const showAchievements = useAchievementToast();
   const { settings } = useSettings();
 
   const pomoDurationMin: number = (settings as Record<string, unknown>)['pomodoro_duration'] as number ?? 25;
@@ -195,6 +197,9 @@ function TimerTab({ onSessionComplete }: TimerTabProps) {
       resetTimer();
       loadDayStats();
       onSessionComplete?.();
+      api.gamification.addPoints({ module: 'focus', reason: 'focus_completed', points: 10, context: { date: todayStr() } })
+        .then(r => { if (r.new_achievements?.length) showAchievements(r.new_achievements); })
+        .catch(() => {});
     }).catch(() => {});
   }
 
@@ -251,6 +256,9 @@ function TimerTab({ onSessionComplete }: TimerTabProps) {
       showToast(`${t('focus.completed')} +${durationMin} min`);
       loadDayStats();
       onSessionComplete?.();
+      api.gamification.addPoints({ module: 'focus', reason: 'focus_completed', points: 10, context: { date: todayStr() } })
+        .then(r => { if (r.new_achievements?.length) showAchievements(r.new_achievements); })
+        .catch(() => {});
     } catch (e) {
       console.error('focus:stopSession error', e);
     }

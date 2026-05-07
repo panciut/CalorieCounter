@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { api } from '../api';
 import { useT } from '../i18n/useT';
+import { useAchievementToast } from '../hooks/useAchievementToast';
 import type { WorkoutSession, WorkoutExerciseSet } from '../types';
 import { cardOuter, eyebrow, pillPrimary, pillGhost, tinyInput } from '../lib/fbUI';
 
@@ -126,6 +127,7 @@ interface EndSessionFormProps {
 
 function EndSessionForm({ session, onEnded, onCancel }: EndSessionFormProps) {
   const { t } = useT();
+  const showAchievements = useAchievementToast();
   const [durationMin, setDurationMin] = useState('');
   const [calories, setCalories] = useState('');
   const [effort, setEffort] = useState('');
@@ -142,6 +144,9 @@ function EndSessionForm({ session, onEnded, onCancel }: EndSessionFormProps) {
         perceived_effort: effort ? parseInt(effort, 10) : null,
         note: note || null,
       });
+      api.gamification.addPoints({ module: 'workouts', reason: 'workout_completed', points: 15 })
+        .then(r => { if (r.new_achievements?.length) showAchievements(r.new_achievements); })
+        .catch(() => {});
       onEnded();
     } finally {
       setSaving(false);

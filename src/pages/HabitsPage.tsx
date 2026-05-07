@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { api } from '../api';
 import { useToast } from '../components/Toast';
 import { useT } from '../i18n/useT';
+import { useAchievementToast } from '../hooks/useAchievementToast';
 import { today } from '../lib/dateUtil';
 import { cardOuter, eyebrow, serifItalic, pillPrimary, pillGhost } from '../lib/fbUI';
 import { fbBtnPrimary, fbBtnGhost } from '../lib/fbStyles';
@@ -172,6 +173,7 @@ type Tab = 'today' | 'history';
 export default function HabitsPage() {
   const { showToast } = useToast();
   const { t } = useT();
+  const showAchievements = useAchievementToast();
 
   const todayStr = today();
   const [tab, setTab] = useState<Tab>('today');
@@ -243,6 +245,9 @@ export default function HabitsPage() {
         await api.habits.uncheck(habit.id, todayStr);
       } else {
         await api.habits.check(habit.id, todayStr);
+        api.gamification.addPoints({ module: 'habits', reason: 'habit_checked', points: 5 })
+          .then(r => { if (r.new_achievements?.length) showAchievements(r.new_achievements); })
+          .catch(() => {});
       }
       await loadWeekStats();
       const list = await loadHabits();

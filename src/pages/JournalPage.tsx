@@ -6,6 +6,7 @@ import {
 import { api } from '../api';
 import { useT } from '../i18n/useT';
 import { useToast } from '../components/Toast';
+import { useAchievementToast } from '../hooks/useAchievementToast';
 import { today, addDays, formatShortDate } from '../lib/dateUtil';
 import { cardOuter, eyebrow } from '../lib/fbUI';
 import { fbBtnPrimary, fbBtnGhost } from '../lib/fbStyles';
@@ -65,6 +66,7 @@ function RatingRow({
 export default function JournalPage() {
   const { t } = useT();
   const { showToast } = useToast();
+  const showAchievements = useAchievementToast();
 
   const todayStr = today();
 
@@ -124,6 +126,9 @@ export default function JournalPage() {
       const from = addDays(todayStr, -13);
       const rows = await api.mood.range(from, todayStr);
       setTrendData(rows);
+      api.gamification.addPoints({ module: 'journal', reason: 'journal_logged', points: 5 })
+        .then(r => { if (r.new_achievements?.length) showAchievements(r.new_achievements); })
+        .catch(() => {});
     } catch {
       showToast(t('common.error') ?? 'Error');
     } finally {

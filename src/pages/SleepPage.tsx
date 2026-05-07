@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, type CSSProperties } from 'react';
 import { api } from '../api';
 import { useToast } from '../components/Toast';
 import { useT } from '../i18n/useT';
+import { useAchievementToast } from '../hooks/useAchievementToast';
 import { today, formatShortDate } from '../lib/dateUtil';
 import { cardOuter, eyebrow, serifItalic, pillGhost } from '../lib/fbUI';
 import { fbBtnPrimary } from '../lib/fbStyles';
@@ -30,6 +31,7 @@ function getLast14Days(): { from: string; to: string } {
 export default function SleepPage() {
   const { showToast } = useToast();
   const { t } = useT();
+  const showAchievements = useAchievementToast();
 
   const [entry, setEntry]         = useState<SleepEntry | null>(null);
   const [bedtime, setBedtime]     = useState('');
@@ -93,6 +95,9 @@ export default function SleepPage() {
       showToast(t('common.saved'), 'success');
       await loadEntry();
       await loadTrend();
+      api.gamification.addPoints({ module: 'sleep', reason: 'sleep_logged', points: 10, context: { date: todayStr } })
+        .then(r => { if (r.new_achievements?.length) showAchievements(r.new_achievements); })
+        .catch(() => {});
     } finally {
       setSaving(false);
     }
