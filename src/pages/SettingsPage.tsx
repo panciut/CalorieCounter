@@ -320,7 +320,7 @@ export default function SettingsPage() {
         <h2 className={sectionTitle}>Apple Health</h2>
         <div className="bg-card border border-border rounded-xl p-4 space-y-3">
           <p className="text-sm text-text-sec">
-            Sync workouts, active calories, and body fat% from Apple Health to CalorieCounter.
+            Sync workouts, active calories, and body fat% from Apple Health to LifeBuddy.
           </p>
           <div className="flex items-center gap-3">
             <button disabled className="px-4 py-2 rounded-md text-sm font-medium bg-card border border-border text-text-sec opacity-50 cursor-not-allowed">
