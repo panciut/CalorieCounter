@@ -227,9 +227,9 @@ export default function Nav({ activePage }: NavProps) {
             fontSize: 13, letterSpacing: -0.3,
             boxShadow: '0 2px 8px rgba(217,119,6,0.25)',
             flexShrink: 0,
-          }}>fb</div>
+          }}>lb</div>
           <span style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 14, color: 'var(--fb-text)', letterSpacing: -0.2 }}>
-            FoodBuddy
+            LifeBuddy
           </span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>

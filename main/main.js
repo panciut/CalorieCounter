@@ -44,7 +44,8 @@ function createWindow() {
       nodeIntegration: false,
     },
     backgroundColor: '#0a0a0a',
-    title: 'CalorieCounter',
+    title: 'LifeBuddy',
+    icon: path.join(__dirname, '../build/icon.ico'),
   });
 
   const isDev = !app.isPackaged;
