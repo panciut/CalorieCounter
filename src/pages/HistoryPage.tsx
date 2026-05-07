@@ -8,7 +8,7 @@ import BarChartCard from '../components/BarChartCard';
 import PageHeader from '../components/ui/PageHeader';
 import { formatShortDate, formatDMY, getMondayOf, today, addDays } from '../lib/dateUtil';
 import { buildHistoryMarkdown, copyToClipboard } from '../lib/exportText';
-import type { WeeklySummary } from '../types';
+import type { WeeklySummary, GoalPlan } from '../types';
 
 type WeekRange = 4 | 12 | 26 | 52 | 'all';
 
@@ -21,10 +21,22 @@ export default function HistoryPage() {
   const [summaries, setSummaries]   = useState<WeeklySummary[]>([]);
   const [weekRange, setWeekRange]   = useState<WeekRange>(12);
   const [energyByWeek, setEnergyByWeek] = useState<Map<string, { avgNet: number; days: number }>>(new Map());
+  const [allPlans, setAllPlans] = useState<GoalPlan[]>([]);
 
   useEffect(() => {
     api.log.getWeeklySummaries().then(setSummaries);
+    api.goals.listPlans().then(setAllPlans);
   }, []);
+
+  // Resolve the plan active on a given date by walking the (ascending) plans list.
+  const planForDate = (date: string): GoalPlan | null => {
+    let active: GoalPlan | null = null;
+    for (const p of allPlans) {
+      if (p.effective_from <= date) active = p;
+      else break;
+    }
+    return active;
+  };
 
   const sortedSummaries = useMemo(
     () => [...summaries].sort((a, b) => a.week_start.localeCompare(b.week_start)),
@@ -61,11 +73,23 @@ export default function HistoryPage() {
     value:     Math.round(s.avg_calories),
   }));
 
-  const calRec = settings.cal_rec || 2000;
-  const calMax = settings.cal_max || 0;
+  // For the chart's goal-line, use the most-recent plan that overlaps the visible range
+  // (falls back to today's settings if no plans are loaded yet).
+  const lastVisibleWeek = rangedSummaries.length > 0 ? rangedSummaries[rangedSummaries.length - 1] : null;
+  const lastWeekPlan = lastVisibleWeek ? planForDate(addDays(lastVisibleWeek.week_start, 6)) : null;
+  const calRec = lastWeekPlan?.cal_rec ?? settings.cal_rec ?? 2000;
+  const calMax = lastWeekPlan?.cal_max ?? settings.cal_max ?? 0;
   const maxBar = Math.max(...chartData.map(d => d.value), 1);
   const yMax   = Math.round(Math.max(calMax || calRec, maxBar) * 1.3);
   const yDomain: [number, number] = [0, yMax];
+
+  // Detect goal changes inside the visible range
+  const goalsChangedInRange = useMemo(() => {
+    if (rangedSummaries.length === 0 || allPlans.length < 2) return false;
+    const start = rangedSummaries[0].week_start;
+    const end   = lastVisibleWeek ? addDays(lastVisibleWeek.week_start, 6) : start;
+    return allPlans.some(p => p.effective_from > start && p.effective_from <= end);
+  }, [rangedSummaries, allPlans, lastVisibleWeek]);
 
   const todayStr = today();
   const completeWeeks = rangedSummaries.filter(s => addDays(s.week_start, 6) < todayStr);
@@ -74,12 +98,24 @@ export default function HistoryPage() {
     ? Math.round(includedForStats.reduce((s, w) => s + w.avg_calories, 0) / includedForStats.length)
     : 0;
   const totalDays = rangedSummaries.reduce((s, w) => s + w.days_logged, 0);
+  // Per-week net rows tagged with the goal active that week, so the avg-net comparison
+  // is per-week-correct even when goals changed mid-range.
   const netRows = completeWeeks
-    .map(s => energyByWeek.get(getMondayOf(s.week_start)))
-    .filter(Boolean) as { avgNet: number; days: number }[];
+    .map(s => {
+      const e = energyByWeek.get(getMondayOf(s.week_start));
+      if (!e) return null;
+      const weekPlan = planForDate(addDays(s.week_start, 6));
+      const weekCalRec = weekPlan?.cal_rec ?? calRec;
+      return { avgNet: e.avgNet, days: e.days, weekCalRec };
+    })
+    .filter(Boolean) as { avgNet: number; days: number; weekCalRec: number }[];
   const statsAvgNet = netRows.length
     ? Math.round(netRows.reduce((s, e) => s + e.avgNet, 0) / netRows.length)
     : null;
+  // Color: green when avg of (avgNet - weekCalRec) ≤ 0
+  const statsAvgNetVsGoal = netRows.length
+    ? netRows.reduce((s, e) => s + (e.avgNet - e.weekCalRec), 0) / netRows.length
+    : 0;
 
   const rangeBtn = (v: WeekRange) => [
     'text-xs px-3 py-1.5 rounded-lg border cursor-pointer transition-colors',
@@ -87,10 +123,15 @@ export default function HistoryPage() {
   ].join(' ');
 
   async function handleCopy() {
-    const [streak, weights] = await Promise.all([api.streaks.get(), api.weight.getAll()]);
+    const [streak, weights, goalPlansList] = await Promise.all([
+      api.streaks.get(),
+      api.weight.getAll(),
+      api.goals.listPlans(),
+    ]);
     const md = buildHistoryMarkdown({
       summaries,
       settings,
+      goalPlans: goalPlansList,
       weightEntries: weights.map(w => ({ date: w.date, weight: w.weight, fat_pct: w.fat_pct })),
       currentStreak: streak.current,
       bestStreak:    streak.best,
@@ -136,6 +177,12 @@ export default function HistoryPage() {
         })}
       </div>
 
+      {goalsChangedInRange && (
+        <div className="rounded-lg bg-accent/5 border border-accent/30 px-3 py-2 text-xs text-accent">
+          {t('history.goalsChanged')}
+        </div>
+      )}
+
       {summaries.length === 0 ? (
         <p className="text-text-sec text-center py-8">{t('history.noHistory')}</p>
       ) : (
@@ -148,7 +195,7 @@ export default function HistoryPage() {
             </div>
             <div className="bg-card rounded-xl p-3 border border-border text-center">
               <p className="text-xs text-text-sec mb-1">{t('history.avgNet')} / day</p>
-              <p className={`font-semibold text-sm ${statsAvgNet == null ? 'text-text-sec' : statsAvgNet <= calRec ? 'text-green' : 'text-accent'}`}>
+              <p className={`font-semibold text-sm ${statsAvgNet == null ? 'text-text-sec' : statsAvgNetVsGoal <= 0 ? 'text-green' : 'text-accent'}`}>
                 {statsAvgNet == null ? '—' : `${statsAvgNet > 0 ? '+' : ''}${statsAvgNet} kcal`}
               </p>
             </div>
@@ -190,6 +237,8 @@ export default function HistoryPage() {
                 {[...rangedSummaries].reverse().map(s => {
                   const key = getMondayOf(s.week_start);
                   const energy = energyByWeek.get(key);
+                  const weekPlan = planForDate(addDays(s.week_start, 6));
+                  const weekCalRec = weekPlan?.cal_rec ?? calRec;
                   return (
                     <tr
                       key={s.week_start}
@@ -200,7 +249,7 @@ export default function HistoryPage() {
                       <td className="px-4 py-3 text-right text-text-sec">{s.days_logged}</td>
                       <td className="px-4 py-3 text-right text-text tabular-nums">{Math.round(s.avg_calories)}</td>
                       <td className={`px-4 py-3 text-right tabular-nums font-medium ${
-                        !energy ? 'text-text-sec' : energy.avgNet <= calRec ? 'text-green' : 'text-accent'
+                        !energy ? 'text-text-sec' : energy.avgNet <= weekCalRec ? 'text-green' : 'text-accent'
                       }`}>
                         {energy ? `${energy.avgNet > 0 ? '+' : ''}${energy.avgNet}` : '—'}
                       </td>

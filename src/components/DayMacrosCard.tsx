@@ -1,5 +1,7 @@
 import { useT } from '../i18n/useT';
 import { useSettings } from '../hooks/useSettings';
+import { useGoalsForDate } from '../hooks/useGoalsForDate';
+import { applyGoalPlan } from '../lib/goalsMerge';
 import MacroChart from './MacroChart';
 import MacroBars from './MacroBars';
 import type { BarDef } from './MacroBars';
@@ -15,11 +17,14 @@ const remColorMap: Record<string, string> = {
 
 interface DayMacrosCardProps {
   entries: LogEntry[];
+  date: string;
 }
 
-export default function DayMacrosCard({ entries }: DayMacrosCardProps) {
+export default function DayMacrosCard({ entries, date }: DayMacrosCardProps) {
   const { t } = useT();
-  const { settings } = useSettings();
+  const { settings: baseSettings } = useSettings();
+  const plan = useGoalsForDate(date);
+  const settings = applyGoalPlan(baseSettings, plan);
 
   const sumEntries = (es: LogEntry[]) => es.reduce(
     (acc, e) => ({

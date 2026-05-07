@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { api } from '../api';
 import { useSettings } from '../hooks/useSettings';
+import { useGoalsForDateRange } from '../hooks/useGoalsForDate';
 import { useT } from '../i18n/useT';
 import { formatShortDate, buildDateRange, today } from '../lib/dateUtil';
 import {
@@ -26,6 +27,9 @@ export default function NetPage() {
 
   // Build filled dataset (all dates, zeros for missing)
   const dateRange = buildDateRange(range);
+  const rangeStart = dateRange[0] || today();
+  const rangeEnd   = dateRange[dateRange.length - 1] || today();
+  const goalsByDate = useGoalsForDateRange(rangeStart, rangeEnd);
   const dataMap   = new Map(data.map(d => [d.date, d]));
   const filled = dateRange.map(date => {
     const p = dataMap.get(date);
@@ -51,7 +55,23 @@ export default function NetPage() {
   const stepsRows = chart.filter(d => d.steps > 0);
   const avgSteps  = stepsRows.length ? Math.round(stepsRows.reduce((s, d) => s + d.steps, 0) / stepsRows.length) : 0;
 
-  const calRec = settings.cal_rec || 2000;
+  // Reference goal: use the most recent goal that covers any visible day.
+  // Per-day comparisons (table + avg) use each day's own goal.
+  const calRecForDate = (d: string) => goalsByDate[d]?.cal_rec ?? settings.cal_rec ?? 2000;
+  const lastDate = chart.length > 0 ? chart[chart.length - 1].date : todayStr;
+  const calRec = calRecForDate(lastDate);
+  // Avg-net vs per-day goal — green when on average we're under each day's goal
+  const avgNetVsGoal = withData.length
+    ? withData.reduce((s, d) => s + (d.net - calRecForDate(d.date)), 0) / withData.length
+    : 0;
+  const goalsChangedInRange = useMemo(() => {
+    const ids = new Set<number>();
+    for (const d of chart) {
+      const p = goalsByDate[d.date];
+      if (p) ids.add(p.id);
+    }
+    return ids.size > 1;
+  }, [chart, goalsByDate]);
 
   const xInterval = range === 7 ? 0 : range === 30 ? 4 : 12;
 
@@ -63,6 +83,12 @@ export default function NetPage() {
         action={<RangePicker<Range> value={range} options={[7, 30, 90]} onChange={setRange} />}
       />
 
+      {goalsChangedInRange && (
+        <div className="rounded-lg bg-accent/5 border border-accent/30 px-3 py-2 text-xs text-accent">
+          {t('history.goalsChanged')}
+        </div>
+      )}
+
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <StatCard label="Avg food in" value={`${avgIn} kcal`} valueClass="text-accent text-lg" />
@@ -70,7 +96,7 @@ export default function NetPage() {
         <StatCard
           label="Avg net"
           value={avgIn > 0 ? `${avgNet} kcal` : '—'}
-          valueClass={`text-lg ${avgNet > 0 && avgNet <= calRec ? 'text-green' : avgNet > calRec ? 'text-red' : ''}`}
+          valueClass={`text-lg ${avgIn > 0 && avgNetVsGoal <= 0 ? 'text-green' : avgIn > 0 ? 'text-red' : ''}`}
         />
         <StatCard label="Avg steps" value={avgSteps > 0 ? avgSteps.toLocaleString() : '—'} valueClass="text-lg" />
       </div>
@@ -136,7 +162,7 @@ export default function NetPage() {
                     : <span className="text-text-sec">—</span>}
                 </td>
                 <td className={`px-4 py-2.5 text-right tabular-nums font-medium ${
-                  d.calories_in > 0 ? (d.net <= calRec ? 'text-green' : 'text-red') : 'text-text-sec'
+                  d.calories_in > 0 ? (d.net <= calRecForDate(d.date) ? 'text-green' : 'text-red') : 'text-text-sec'
                 }`}>
                   {d.calories_in > 0 ? d.net : '—'}
                 </td>

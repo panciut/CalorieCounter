@@ -1,4 +1,5 @@
-import { MEAL_ORDER, type LogEntry, type WeekDayDetail, type Settings, type Meal } from '../types';
+import { MEAL_ORDER, type LogEntry, type WeekDayDetail, type Settings, type Meal, type GoalPlan } from '../types';
+import { applyGoalPlan } from './goalsMerge';
 
 const r = (n: number, d = 0) => {
   const f = Math.pow(10, d);
@@ -48,6 +49,8 @@ export interface DayExportInput {
   date: string;
   entries: LogEntry[];
   settings: Settings;
+  /** Goal plan active on `date`. When provided, overrides goal-related fields in settings. */
+  goalPlan?: GoalPlan | null;
   waterMl?: number;
   waterGoalMl?: number;
   restingKcal?: number;
@@ -57,7 +60,8 @@ export interface DayExportInput {
 }
 
 export function buildDayMarkdown(input: DayExportInput): string {
-  const { date, entries, settings, waterMl, waterGoalMl, restingKcal, activeKcal, extraKcal, note } = input;
+  const { date, entries, settings: baseSettings, goalPlan, waterMl, waterGoalMl, restingKcal, activeKcal, extraKcal, note } = input;
+  const settings = applyGoalPlan(baseSettings, goalPlan);
   const exerciseKcal = (restingKcal ?? 0) + (activeKcal ?? 0) + (extraKcal ?? 0);
   const logged = entries.filter(e => e.status === 'logged');
   const planned = entries.filter(e => e.status === 'planned');
@@ -174,28 +178,54 @@ export function buildPlanMarkdown(date: string, entries: LogEntry[], settings: S
   return lines.join('\n').trimEnd() + '\n';
 }
 
-export function buildWeekMarkdown(weekStart: string, weekEnd: string, rows: WeekDayDetail[], settings: Settings): string {
+export function buildWeekMarkdown(
+  weekStart: string,
+  weekEnd: string,
+  rows: WeekDayDetail[],
+  settings: Settings,
+  goalsByDate?: Record<string, GoalPlan>,
+): string {
   const logged = rows.filter(d => d.calories > 0);
   const count = logged.length || 1;
   const avg = (k: keyof WeekDayDetail) => logged.reduce((s, d) => s + (d[k] as number), 0) / count;
+
+  // Collect distinct plans intersecting the week (in chronological order)
+  const planList: GoalPlan[] = [];
+  const seen = new Set<number>();
+  if (goalsByDate) {
+    for (const d of rows) {
+      const p = goalsByDate[d.date];
+      if (p && !seen.has(p.id)) { seen.add(p.id); planList.push(p); }
+    }
+  }
+  // Reference settings: latest plan in the range, falling back to base settings.
+  const refSettings = applyGoalPlan(settings, planList[planList.length - 1] || null);
 
   const lines: string[] = [];
   lines.push(`# Week — ${weekStart} → ${weekEnd}`);
   lines.push('');
   lines.push('## Targets');
-  if (settings.cal_rec) lines.push(`- Calories goal: ${settings.cal_rec} kcal/day (range ${settings.cal_min}–${settings.cal_max})`);
-  if (settings.protein_rec) lines.push(`- Protein goal: ${settings.protein_rec}g/day (range ${settings.protein_min}–${settings.protein_max}g)`);
-  if (settings.carbs_rec) lines.push(`- Carbs goal: ${settings.carbs_rec}g/day (range ${settings.carbs_min}–${settings.carbs_max}g)`);
-  if (settings.fat_rec) lines.push(`- Fat goal: ${settings.fat_rec}g/day (range ${settings.fat_min}–${settings.fat_max}g)`);
-  if (settings.fiber_rec) lines.push(`- Fiber goal: ${settings.fiber_rec}g/day (range ${settings.fiber_min}–${settings.fiber_max}g)`);
+  if (planList.length > 1) {
+    lines.push(`_Goals changed during this week (${planList.length} periods)._`);
+    for (const p of planList) {
+      const lbl = p.label ? ` (${p.label})` : '';
+      lines.push(`- From ${p.effective_from}${lbl}: ${p.cal_rec ?? '—'} kcal · P ${p.protein_rec ?? '—'}g · C ${p.carbs_rec ?? '—'}g · F ${p.fat_rec ?? '—'}g · Fib ${p.fiber_rec ?? '—'}g`);
+    }
+  } else {
+    if (refSettings.cal_rec) lines.push(`- Calories goal: ${refSettings.cal_rec} kcal/day (range ${refSettings.cal_min}–${refSettings.cal_max})`);
+    if (refSettings.protein_rec) lines.push(`- Protein goal: ${refSettings.protein_rec}g/day (range ${refSettings.protein_min}–${refSettings.protein_max}g)`);
+    if (refSettings.carbs_rec) lines.push(`- Carbs goal: ${refSettings.carbs_rec}g/day (range ${refSettings.carbs_min}–${refSettings.carbs_max}g)`);
+    if (refSettings.fat_rec) lines.push(`- Fat goal: ${refSettings.fat_rec}g/day (range ${refSettings.fat_min}–${refSettings.fat_max}g)`);
+    if (refSettings.fiber_rec) lines.push(`- Fiber goal: ${refSettings.fiber_rec}g/day (range ${refSettings.fiber_min}–${refSettings.fiber_max}g)`);
+  }
   lines.push('');
 
   lines.push(`## Averages (${logged.length} logged day${logged.length === 1 ? '' : 's'})`);
-  lines.push(macroLine('Calories', avg('calories'), settings.cal_rec, ' kcal'));
-  lines.push(macroLine('Protein', avg('protein'), settings.protein_rec));
-  lines.push(macroLine('Carbs', avg('carbs'), settings.carbs_rec));
-  lines.push(macroLine('Fat', avg('fat'), settings.fat_rec));
-  lines.push(macroLine('Fiber', avg('fiber'), settings.fiber_rec));
+  lines.push(macroLine('Calories', avg('calories'), refSettings.cal_rec, ' kcal'));
+  lines.push(macroLine('Protein', avg('protein'), refSettings.protein_rec));
+  lines.push(macroLine('Carbs', avg('carbs'), refSettings.carbs_rec));
+  lines.push(macroLine('Fat', avg('fat'), refSettings.fat_rec));
+  lines.push(macroLine('Fiber', avg('fiber'), refSettings.fiber_rec));
   lines.push('');
 
   lines.push('## Daily breakdown');
@@ -215,24 +245,37 @@ export function buildWeekMarkdown(weekStart: string, weekEnd: string, rows: Week
 export interface HistoryExportInput {
   summaries: { week_start: string; days_logged: number; avg_calories: number; avg_protein: number; avg_carbs: number; avg_fat: number; avg_fiber: number }[];
   settings: Settings;
+  /** Full goal_plans history, ascending by effective_from. Used to render the goal periods block. */
+  goalPlans?: GoalPlan[];
   weightEntries?: { date: string; weight: number; fat_pct: number | null }[];
   currentStreak?: number;
   bestStreak?: number;
 }
 
 export function buildHistoryMarkdown(input: HistoryExportInput): string {
-  const { summaries, settings, weightEntries, currentStreak, bestStreak } = input;
+  const { summaries, settings, goalPlans, weightEntries, currentStreak, bestStreak } = input;
   const lines: string[] = [];
   lines.push(`# History overview — ${new Date().toISOString().slice(0, 10)}`);
   lines.push('');
 
-  lines.push('## Targets');
-  if (settings.cal_rec) lines.push(`- Calories: ${settings.cal_rec} kcal/day (range ${settings.cal_min}–${settings.cal_max})`);
-  if (settings.protein_rec) lines.push(`- Protein: ${settings.protein_rec}g/day (range ${settings.protein_min}–${settings.protein_max}g)`);
-  if (settings.carbs_rec) lines.push(`- Carbs: ${settings.carbs_rec}g/day (range ${settings.carbs_min}–${settings.carbs_max}g)`);
-  if (settings.fat_rec) lines.push(`- Fat: ${settings.fat_rec}g/day (range ${settings.fat_min}–${settings.fat_max}g)`);
-  if (settings.fiber_rec) lines.push(`- Fiber: ${settings.fiber_rec}g/day (range ${settings.fiber_min}–${settings.fiber_max}g)`);
-  if (settings.weight_goal) lines.push(`- Weight goal: ${settings.weight_goal} kg`);
+  lines.push('## Goal periods');
+  if (goalPlans && goalPlans.length > 0) {
+    for (let i = 0; i < goalPlans.length; i++) {
+      const p = goalPlans[i];
+      const next = goalPlans[i + 1];
+      const lbl = p.label ? ` — ${p.label}` : '';
+      const range = `${p.effective_from} → ${next ? next.effective_from : 'current'}`;
+      lines.push(`- ${range}${lbl} (${p.goal_type}): ${p.cal_rec ?? '—'} kcal · P ${p.protein_rec ?? '—'}g · C ${p.carbs_rec ?? '—'}g · F ${p.fat_rec ?? '—'}g · Fib ${p.fiber_rec ?? '—'}g${p.weight_goal ? ` · target ${p.weight_goal}kg` : ''}`);
+      if (p.notes) lines.push(`  - notes: ${p.notes.replace(/\n/g, ' ')}`);
+    }
+  } else {
+    if (settings.cal_rec) lines.push(`- Calories: ${settings.cal_rec} kcal/day (range ${settings.cal_min}–${settings.cal_max})`);
+    if (settings.protein_rec) lines.push(`- Protein: ${settings.protein_rec}g/day (range ${settings.protein_min}–${settings.protein_max}g)`);
+    if (settings.carbs_rec) lines.push(`- Carbs: ${settings.carbs_rec}g/day (range ${settings.carbs_min}–${settings.carbs_max}g)`);
+    if (settings.fat_rec) lines.push(`- Fat: ${settings.fat_rec}g/day (range ${settings.fat_min}–${settings.fat_max}g)`);
+    if (settings.fiber_rec) lines.push(`- Fiber: ${settings.fiber_rec}g/day (range ${settings.fiber_min}–${settings.fiber_max}g)`);
+    if (settings.weight_goal) lines.push(`- Weight goal: ${settings.weight_goal} kg`);
+  }
   lines.push('');
 
   if (currentStreak != null || bestStreak != null) {

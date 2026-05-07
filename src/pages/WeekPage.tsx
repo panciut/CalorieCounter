@@ -3,6 +3,7 @@ import { useT } from '../i18n/useT';
 import { useNavigate } from '../hooks/useNavigate';
 import { useSettings } from '../hooks/useSettings';
 import { useToast } from '../components/Toast';
+import { useGoalsForDateRange } from '../hooks/useGoalsForDate';
 import { api } from '../api';
 import BarChartCard from '../components/BarChartCard';
 import { fmtDate, formatShortDate, formatDMY, addDays, today } from '../lib/dateUtil';
@@ -91,10 +92,15 @@ export default function WeekPage({ weekStart }: WeekPageProps) {
   const totalNet = Math.round(totalFoodOnEnergyDays - totalEnergyOut);
   const avgNet   = daysWithEnergy.length > 0 ? Math.round(totalNet / daysWithEnergy.length) : null;
 
-  const recWeek = (settings.cal_rec || 0) * includedRows.length;
-  const maxWeek = (settings.cal_max || 0) * includedRows.length;
+  // Per-day-correct: sum each day's own goal across included days
+  const goalsByDate = useGoalsForDateRange(weekStart, weekEnd);
+  const recWeek = includedRows.reduce((s, d) => s + (goalsByDate[d.date]?.cal_rec ?? settings.cal_rec ?? 0), 0);
+  const maxWeek = includedRows.reduce((s, d) => s + (goalsByDate[d.date]?.cal_max ?? settings.cal_max ?? 0), 0);
   const bankRec = recWeek - totalKcal;
   const bankMax = maxWeek - totalKcal;
+  // Surface a "goals changed" chip when this week straddles a boundary
+  const uniquePlanIds = new Set(Object.values(goalsByDate).map(p => p?.id).filter(Boolean));
+  const goalsChangedInWeek = uniquePlanIds.size > 1;
 
   const chartData = projected.map(d => ({
     label: formatShortDate(d.date),
@@ -103,7 +109,7 @@ export default function WeekPage({ weekStart }: WeekPageProps) {
   }));
 
   async function handleCopy() {
-    const md = buildWeekMarkdown(weekStart!, weekEnd, rows, settings);
+    const md = buildWeekMarkdown(weekStart!, weekEnd, rows, settings, goalsByDate);
     const ok = await copyToClipboard(md);
     showToast(ok ? t('export.copied') : t('export.copyFailed'), ok ? 'success' : 'error');
   }
@@ -123,6 +129,7 @@ export default function WeekPage({ weekStart }: WeekPageProps) {
         date,
         entries,
         settings,
+        goalPlan: goalsByDate[date] ?? null,
         waterMl: water.total_ml || undefined,
         waterGoalMl: settings.water_goal,
         restingKcal: e?.resting_kcal || undefined,
@@ -195,6 +202,12 @@ export default function WeekPage({ weekStart }: WeekPageProps) {
           </div>
         )}
       </div>
+
+      {goalsChangedInWeek && (
+        <div className="rounded-lg bg-accent/5 border border-accent/30 px-3 py-2 text-xs text-accent">
+          {t('history.goalsChanged')}
+        </div>
+      )}
 
       {(recWeek > 0 || maxWeek > 0) && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">

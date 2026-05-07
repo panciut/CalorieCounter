@@ -360,6 +360,25 @@ function initDb() {
     "CREATE INDEX IF NOT EXISTS idx_daily_energy_date   ON daily_energy(date)",
     "CREATE INDEX IF NOT EXISTS idx_supplement_log_date ON supplement_log(date)",
     "CREATE INDEX IF NOT EXISTS idx_pantry_food_id      ON pantry(food_id)",
+    `CREATE TABLE IF NOT EXISTS goal_plans (
+      id              INTEGER PRIMARY KEY AUTOINCREMENT,
+      effective_from  TEXT NOT NULL UNIQUE,
+      label           TEXT NOT NULL DEFAULT '',
+      notes           TEXT NOT NULL DEFAULT '',
+      goal_type       TEXT NOT NULL DEFAULT 'custom',
+      cal_min         REAL,
+      cal_rec         REAL,
+      cal_max         REAL,
+      protein_min     REAL, protein_rec REAL, protein_max REAL,
+      carbs_min       REAL, carbs_rec   REAL, carbs_max   REAL,
+      fat_min         REAL, fat_rec     REAL, fat_max     REAL,
+      fiber_min       REAL, fiber_rec   REAL, fiber_max   REAL,
+      weight_goal     REAL,
+      water_goal      REAL,
+      tol_1           REAL, tol_2 REAL, tol_3 REAL,
+      created_at      TEXT NOT NULL DEFAULT (datetime('now'))
+    )`,
+    "CREATE INDEX IF NOT EXISTS idx_goal_plans_effective_from ON goal_plans(effective_from)",
   ];
   for (const stmt of migrations) {
     try {
@@ -413,6 +432,45 @@ function initDb() {
       }
     }
   } catch (_) {}
+
+  // One-time seed of goal_plans from current settings keys, so existing history
+  // resolves against the same goal it implicitly used before time-versioning.
+  try {
+    const seeded = database.prepare("SELECT value FROM settings WHERE key = 'schema.goal_plans_seeded_v1'").get();
+    if (!seeded) {
+      const exists = database.prepare('SELECT COUNT(*) AS n FROM goal_plans').get().n;
+      if (exists === 0) {
+        const getNum = (key) => {
+          const row = database.prepare('SELECT value FROM settings WHERE key = ?').get(key);
+          if (!row) return null;
+          const n = parseFloat(row.value);
+          return Number.isFinite(n) ? n : null;
+        };
+        database.prepare(`
+          INSERT INTO goal_plans (
+            effective_from, label, notes, goal_type,
+            cal_min, cal_rec, cal_max,
+            protein_min, protein_rec, protein_max,
+            carbs_min, carbs_rec, carbs_max,
+            fat_min, fat_rec, fat_max,
+            fiber_min, fiber_rec, fiber_max,
+            weight_goal, water_goal,
+            tol_1, tol_2, tol_3
+          ) VALUES ('2000-01-01', 'Initial', '', 'custom',
+            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(
+          getNum('cal_min'),     getNum('cal_rec'),     getNum('cal_max'),
+          getNum('protein_min'), getNum('protein_rec'), getNum('protein_max'),
+          getNum('carbs_min'),   getNum('carbs_rec'),   getNum('carbs_max'),
+          getNum('fat_min'),     getNum('fat_rec'),     getNum('fat_max'),
+          getNum('fiber_min'),   getNum('fiber_rec'),   getNum('fiber_max'),
+          getNum('weight_goal'), getNum('water_goal'),
+          getNum('tol_1'),       getNum('tol_2'),       getNum('tol_3'),
+        );
+      }
+      database.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('schema.goal_plans_seeded_v1', '1')").run();
+    }
+  } catch (e) { console.error('goal_plans seed failed:', e); }
 
   // food_packages table (one-to-many with foods)
   try {

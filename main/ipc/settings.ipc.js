@@ -1,6 +1,19 @@
 const { ipcMain } = require('electron');
 const { getDb } = require('../db');
 
+// Goal fields are time-versioned via goal_plans. settings:get overlays today's
+// active plan onto the returned object so legacy useSettings() consumers see
+// the right values without changes.
+const GOAL_FIELDS = [
+  'cal_min', 'cal_rec', 'cal_max',
+  'protein_min', 'protein_rec', 'protein_max',
+  'carbs_min', 'carbs_rec', 'carbs_max',
+  'fat_min', 'fat_rec', 'fat_max',
+  'fiber_min', 'fiber_rec', 'fiber_max',
+  'weight_goal', 'water_goal',
+  'tol_1', 'tol_2', 'tol_3',
+];
+
 function registerSettingsIpc() {
   ipcMain.handle('settings:get', () => {
     const defaults = {
@@ -22,9 +35,23 @@ function registerSettingsIpc() {
       off_local_enabled: 0, off_local_last_synced: '', off_disable_online: 0,
     };
     const stringKeys = new Set(['language', 'theme', 'extra_nutrition_unit', 'off_country', 'off_local_last_synced', 'currency_symbol']);
-    for (const { key, value } of getDb().prepare('SELECT key, value FROM settings').all()) {
+    const db = getDb();
+    for (const { key, value } of db.prepare('SELECT key, value FROM settings').all()) {
       if (key in defaults) defaults[key] = stringKeys.has(key) ? value : parseFloat(value);
     }
+    // Overlay today's goal_plan on top of any settings values for goal fields
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      const plan = db.prepare(`
+        SELECT * FROM goal_plans WHERE effective_from <= ?
+        ORDER BY effective_from DESC LIMIT 1
+      `).get(today);
+      if (plan) {
+        for (const f of GOAL_FIELDS) {
+          if (plan[f] !== null && plan[f] !== undefined) defaults[f] = plan[f];
+        }
+      }
+    } catch { /* goal_plans not yet created on very first run; defaults stand */ }
     return defaults;
   });
 

@@ -327,10 +327,12 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
   }
 
   async function handleCopyDay() {
+    const goalPlan = await api.goals.getForDate(dateStr);
     const md = buildDayMarkdown({
       date: dateStr,
       entries,
       settings,
+      goalPlan,
       waterMl: waterTotal,
       waterGoalMl: settings.water_goal,
       restingKcal: energyResting || undefined,
@@ -473,7 +475,7 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
       )}
 
       {/* Macros summary card */}
-      <DayMacrosCard entries={entries} />
+      <DayMacrosCard entries={entries} date={dateStr} />
 
       {/* Energy (Apple Watch) + Supplements */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

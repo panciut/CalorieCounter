@@ -8,7 +8,7 @@ import type {
   PantryItem, PantryAggregate, PantryLocation, ShoppingItem, PantryIngredientCheck,
   Scale,
   CalorieTrendPoint, MacroTrendPoint, ExerciseTrendPoint,
-  GoalType, TDEEResult, GoalSuggestion, DailyEnergy,
+  GoalType, TDEEResult, GoalSuggestion, GoalPlan, GoalPlanInput, DailyEnergy,
   DeductionEvent,
   AppNotification, DismissedNotification,
   OffLocalStatus, OffImportProgress,
@@ -307,6 +307,14 @@ export const api = {
   goals: {
     calculateTDEE: () => invoke<TDEEResult>('goals:calculateTDEE'),
     suggest: (data: { goal_type: GoalType; tdee: number }) => invoke<GoalSuggestion>('goals:suggest', data),
+    getForDate: (date: string) => invoke<GoalPlan | null>('goals:getForDate', { date }),
+    getForDateRange: (start: string, end: string) =>
+      invoke<Record<string, GoalPlan>>('goals:getForDateRange', { start, end }),
+    listPlans: () => invoke<GoalPlan[]>('goals:listPlans'),
+    savePlan: (plan: GoalPlanInput) =>
+      invoke<{ ok: boolean; id: number; updated: boolean }>('goals:savePlan', plan),
+    deletePlan: (id: number) =>
+      invoke<{ ok: boolean; reason?: string }>('goals:deletePlan', { id }),
   },
 
   dailyEnergy: {

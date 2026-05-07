@@ -685,7 +685,7 @@ export interface StatsBundle {
 
 export type StatsRange = 7 | 30 | 90 | 180 | 365 | 'all';
 
-export type GoalType = 'lose' | 'maintain' | 'gain';
+export type GoalType = 'lose' | 'maintain' | 'gain' | 'custom';
 
 export interface TDEEResult {
   tdee: number | null;
@@ -700,6 +700,37 @@ export interface GoalSuggestion {
   protein_rec: number;
   rate_per_week_kg: number;
 }
+
+export interface GoalPlan {
+  id: number;
+  effective_from: string;
+  label: string;
+  notes: string;
+  goal_type: GoalType;
+  cal_min: number | null;
+  cal_rec: number | null;
+  cal_max: number | null;
+  protein_min: number | null;
+  protein_rec: number | null;
+  protein_max: number | null;
+  carbs_min: number | null;
+  carbs_rec: number | null;
+  carbs_max: number | null;
+  fat_min: number | null;
+  fat_rec: number | null;
+  fat_max: number | null;
+  fiber_min: number | null;
+  fiber_rec: number | null;
+  fiber_max: number | null;
+  weight_goal: number | null;
+  water_goal: number | null;
+  tol_1: number | null;
+  tol_2: number | null;
+  tol_3: number | null;
+  created_at: string;
+}
+
+export type GoalPlanInput = Partial<Omit<GoalPlan, 'id' | 'created_at'>> & { effective_from: string };
 
 export interface BarcodeResult {
   name: string;
