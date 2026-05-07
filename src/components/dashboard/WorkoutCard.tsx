@@ -94,7 +94,7 @@ export default function WorkoutCard() {
           </div>
           {completed.length > 1 && (
             <div style={{ fontSize: 11, color: 'var(--fb-text-3)' }}>
-              {completed.length} sessioni oggi
+              {t('workouts.sessionsToday').replace('{n}', String(completed.length))}
             </div>
           )}
         </>

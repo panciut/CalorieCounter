@@ -159,10 +159,12 @@ function registerUndoIpc() {
           data.old_ended_at, data.old_duration_min, data.old_calories_burned,
           data.old_perceived_effort, data.old_note, data.id
         );
-        // Revert daily_energy active_kcal if we had previously set it
-        if (data.old_calories_burned == null) {
-          // Nothing to revert for energy — we can't know prior value cleanly; leave as-is
-        }
+        // After restoring the session row:
+        const prevCalories = data.old_calories_burned ?? 0;
+        try {
+          db.prepare('UPDATE daily_energy SET active_kcal = ? WHERE date = ?')
+            .run(prevCalories, data.date);
+        } catch (_) {}
         return { action, description: 'workout session end' };
 
       case 'workouts:deleteSession':
