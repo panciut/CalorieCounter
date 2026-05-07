@@ -286,7 +286,7 @@ export const api = {
 
   sleep: {
     get:    (date: string) => invoke<SleepEntry | null>('sleep:get', { date }),
-    upsert: (data: Partial<SleepEntry> & { date: string }) => invoke<{ ok: boolean }>('sleep:upsert', data),
+    upsert: (data: Omit<Partial<SleepEntry>, 'factors'> & { date: string; factors?: string[] }) => invoke<{ ok: boolean }>('sleep:upsert', data),
     range:  (from: string, to: string) => invoke<SleepTrendPoint[]>('sleep:range', { from, to }),
     delete: (date: string) => invoke<{ ok: boolean }>('sleep:delete', { date }),
   },

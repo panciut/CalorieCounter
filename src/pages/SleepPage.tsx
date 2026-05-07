@@ -3,7 +3,7 @@ import { api } from '../api';
 import { useToast } from '../components/Toast';
 import { useT } from '../i18n/useT';
 import { today, formatShortDate } from '../lib/dateUtil';
-import { cardOuter, eyebrow, serifItalic, pillPrimary, pillGhost } from '../lib/fbUI';
+import { cardOuter, eyebrow, serifItalic, pillGhost } from '../lib/fbUI';
 import { fbBtnPrimary } from '../lib/fbStyles';
 import BarChartCard from '../components/BarChartCard';
 import type { SleepEntry, SleepTrendPoint } from '../types';
@@ -43,21 +43,29 @@ export default function SleepPage() {
   const todayStr = today();
 
   const loadEntry = useCallback(async () => {
-    const row = await api.sleep.get(todayStr) as SleepEntry | null;
-    setEntry(row);
-    if (row) {
-      setBedtime(row.bedtime ?? '');
-      setWakeTime(row.wake_time ?? '');
-      setQuality(row.quality ?? 0);
-      setFactors(row.factors ? JSON.parse(row.factors) : []);
-      setNote(row.note ?? '');
+    try {
+      const row = await api.sleep.get(todayStr) as SleepEntry | null;
+      setEntry(row);
+      if (row) {
+        setBedtime(row.bedtime ?? '');
+        setWakeTime(row.wake_time ?? '');
+        setQuality(row.quality ?? 0);
+        setFactors(row.factors ? JSON.parse(row.factors) : []);
+        setNote(row.note ?? '');
+      }
+    } catch {
+      // leave state as-is on error
     }
   }, [todayStr]);
 
   const loadTrend = useCallback(async () => {
-    const { from, to } = getLast14Days();
-    const rows = await api.sleep.range(from, to) as SleepTrendPoint[];
-    setTrendData(rows);
+    try {
+      const { from, to } = getLast14Days();
+      const rows = await api.sleep.range(from, to) as SleepTrendPoint[];
+      setTrendData(rows);
+    } catch {
+      // leave state as-is on error
+    }
   }, []);
 
   useEffect(() => {
@@ -92,11 +100,15 @@ export default function SleepPage() {
 
   async function handleDelete() {
     if (!entry) return;
-    await api.sleep.delete(todayStr);
-    setEntry(null);
-    setBedtime(''); setWakeTime(''); setQuality(0); setFactors([]); setNote('');
-    await loadTrend();
-    showToast(t('sleep.deleted'), 'success');
+    try {
+      await api.sleep.delete(todayStr);
+      setEntry(null);
+      setBedtime(''); setWakeTime(''); setQuality(0); setFactors([]); setNote('');
+      await loadTrend();
+      showToast(t('sleep.deleted'), 'success');
+    } catch {
+      // leave state as-is on error
+    }
   }
 
   // Chart data: last 14 days, x = short date, y = duration in hours (decimal)
@@ -177,7 +189,7 @@ export default function SleepPage() {
           const [wh, wm] = wakeTime.split(':').map(Number);
           let bedMins  = bh * 60 + bm;
           let wakeMins = wh * 60 + wm;
-          if (bh > 12 && wh <= 12) wakeMins += 24 * 60;
+          if (bh >= 12 && wh <= 12) wakeMins += 24 * 60;
           const diff = wakeMins - bedMins;
           if (diff > 0) {
             return (

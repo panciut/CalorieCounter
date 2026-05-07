@@ -50,6 +50,26 @@ function registerUndoIpc() {
         `).run(data.date, data.weight, data.fat_pct, data.muscle_mass, data.water_pct, data.bone_mass, data.scale_id, data.id);
         return { action, description: 'weight entry' };
 
+      case 'sleep:upsert':
+        if (data.old == null) {
+          db.prepare('DELETE FROM sleep_log WHERE date = ?').run(data.date);
+        } else {
+          db.prepare(`
+            INSERT OR REPLACE INTO sleep_log (date, bedtime, wake_time, duration_min, quality, factors, note, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          `).run(data.old.date, data.old.bedtime, data.old.wake_time, data.old.duration_min,
+                 data.old.quality, data.old.factors, data.old.note, data.old.created_at);
+        }
+        return { action, description: 'sleep entry' };
+
+      case 'sleep:delete':
+        db.prepare(`
+          INSERT OR REPLACE INTO sleep_log (date, bedtime, wake_time, duration_min, quality, factors, note, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(data.row.date, data.row.bedtime, data.row.wake_time, data.row.duration_min,
+               data.row.quality, data.row.factors, data.row.note, data.row.created_at);
+        return { action, description: 'sleep entry' };
+
       default:
         return null;
     }

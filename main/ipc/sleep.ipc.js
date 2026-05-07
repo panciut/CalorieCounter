@@ -15,7 +15,7 @@ function calcDurationMin(bedtime, wake_time) {
   const [wh, wm] = wake_time.split(':').map(Number);
   let bedMins  = bh * 60 + bm;
   let wakeMins = wh * 60 + wm;
-  if (bh > 12 && wh <= 12) {
+  if (bh >= 12 && wh <= 12) {
     wakeMins += 24 * 60;
   }
   const diff = wakeMins - bedMins;

@@ -39,7 +39,7 @@ export default function SleepCard() {
   return (
     <div style={cardOuter}>
       {/* Header */}
-      <div style={eyebrow}>SONNO</div>
+      <div style={eyebrow}>{t('sleep.eyebrow')}</div>
 
       {/* Duration display */}
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
