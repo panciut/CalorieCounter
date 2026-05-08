@@ -48,6 +48,15 @@ export interface FoodPackage {
   price?: number | null;
 }
 
+export type FoodCategory =
+  | 'vegetables' | 'fruit' | 'meat' | 'fish' | 'dairy' | 'eggs'
+  | 'grains' | 'legumes' | 'nuts_seeds' | 'sweets' | 'beverages' | 'other';
+
+export const FOOD_CATEGORIES: FoodCategory[] = [
+  'vegetables', 'fruit', 'meat', 'fish', 'dairy', 'eggs',
+  'grains', 'legumes', 'nuts_seeds', 'sweets', 'beverages', 'other',
+];
+
 export interface Food {
   id: number;
   name: string;
@@ -68,6 +77,14 @@ export interface Food {
   sugar?: number | null;          // g per 100g, optional
   saturated_fat?: number | null;  // g per 100g, optional
   sodium_mg?: number | null;      // mg per 100g, optional (display can convert to salt g)
+  category?: FoodCategory;        // default 'other'
+  group_id?: number | null;       // self-reference: variant points to canonical
+  variant_count?: number;         // attached when this food is a canonical (read-only computed field)
+}
+
+export interface SimilarFood extends Food {
+  nameScore: number;
+  macroDeltaPct: number;
 }
 
 export interface FrequentFood extends Food {
@@ -748,6 +765,8 @@ export interface BarcodeResult {
   sodium_mg?: number | null;
   barcode?: string;
   brand?: string;
+  categories_tags?: string;
+  category?: FoodCategory;
 }
 
 // ── Page navigation ──────────────────────────────────────────────────────────

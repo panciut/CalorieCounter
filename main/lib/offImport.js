@@ -159,6 +159,9 @@ function filterRow(p) {
     pack_grams: r2(packGrams),
     is_liquid: isLiquid ? 1 : 0,
     completeness: Math.round((filled / possible) * 100) / 100,
+    categories_tags: typeof p.categories_tags === 'string'
+      ? p.categories_tags
+      : (Array.isArray(p.categories_tags) ? p.categories_tags.join(',') : null),
   };
 }
 
@@ -218,9 +221,9 @@ function startImport(onProgress) {
       db.pragma('temp_store = MEMORY');
       insertStmt = db.prepare(`
         INSERT OR REPLACE INTO products
-          (code, name, brand, calories, protein, carbs, fat, fiber, sugar, saturated_fat, sodium_mg, pack_grams, is_liquid, completeness)
+          (code, name, brand, calories, protein, carbs, fat, fiber, sugar, saturated_fat, sodium_mg, pack_grams, is_liquid, completeness, categories_tags)
         VALUES
-          (@code, @name, @brand, @calories, @protein, @carbs, @fat, @fiber, @sugar, @saturated_fat, @sodium_mg, @pack_grams, @is_liquid, @completeness)
+          (@code, @name, @brand, @calories, @protein, @carbs, @fat, @fiber, @sugar, @saturated_fat, @sodium_mg, @pack_grams, @is_liquid, @completeness, @categories_tags)
       `);
 
       const onError = (err) => {

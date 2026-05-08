@@ -9,7 +9,8 @@ import ConfirmDialog from './ConfirmDialog';
 import OffSuggestions from './OffSuggestions';
 import FoodMatchModal, { type Candidate } from './FoodMatchModal';
 import { checkMacroConsistency } from '../lib/macroCheck';
-import type { Food, BarcodeResult } from '../types';
+import type { Food, BarcodeResult, FoodCategory } from '../types';
+import { FOOD_CATEGORIES } from '../types';
 
 // ── Form types & helpers ──────────────────────────────────────────────────────
 
@@ -32,16 +33,18 @@ interface FoodFormState {
   sugar: string; saturated_fat: string;
   /** Holds the user-entered value in the currently selected unit (sodium-mg OR salt-g). Conversion to sodium_mg happens at save. */
   sodium_or_salt: string;
+  category: FoodCategory;
 }
 
 function emptyForm(): FoodFormState {
-  return { name: '', calories: '', protein: '', carbs: '', fat: '', fiber: '', piece_grams: '', is_liquid: false, is_bulk: true, barcode: '', opened_days: '7', price_per_100g: '', sugar: '', saturated_fat: '', sodium_or_salt: '' };
+  return { name: '', calories: '', protein: '', carbs: '', fat: '', fiber: '', piece_grams: '', is_liquid: false, is_bulk: true, barcode: '', opened_days: '7', price_per_100g: '', sugar: '', saturated_fat: '', sodium_or_salt: '', category: 'other' };
 }
 
 function barcodeToForm(r: BarcodeResult, barcode: string, unit: 'sodium' | 'salt'): FoodFormState {
   const sodiumStr = r.sodium_mg != null
     ? (unit === 'salt' ? String(Math.round((r.sodium_mg / 400) * 100) / 100) : String(r.sodium_mg))
     : '';
+  const cat = ((r as BarcodeResult & { category?: FoodCategory }).category) || 'other';
   return {
     name: r.name, calories: String(r.calories), protein: String(r.protein),
     carbs: String(r.carbs), fat: String(r.fat), fiber: String(r.fiber),
@@ -49,6 +52,7 @@ function barcodeToForm(r: BarcodeResult, barcode: string, unit: 'sodium' | 'salt
     sugar: r.sugar != null ? String(r.sugar) : '',
     saturated_fat: r.saturated_fat != null ? String(r.saturated_fat) : '',
     sodium_or_salt: sodiumStr,
+    category: cat,
   };
 }
 
@@ -73,6 +77,7 @@ function formToData(f: FoodFormState, unit: 'sodium' | 'salt'): Omit<Food, 'id'>
     sugar: f.sugar.trim() === '' ? null : parseFloat(f.sugar),
     saturated_fat: f.saturated_fat.trim() === '' ? null : parseFloat(f.saturated_fat),
     sodium_mg: sodium_mg != null && !isNaN(sodium_mg) ? sodium_mg : null,
+    category: f.category,
   };
 }
 
@@ -337,6 +342,20 @@ export default function AddFoodPanel({ onSaved, knownFoods, onFoodFound, default
               <label className="text-xs text-text-sec">{t('foods.bulk')}</label>
               <input type="checkbox" checked={form.is_bulk} onChange={e => patch({ is_bulk: e.target.checked, piece_grams: e.target.checked ? '' : form.piece_grams })} className="cursor-pointer accent-accent w-4 h-4" />
             </div>
+          </div>
+
+          {/* Category dropdown */}
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-text-sec shrink-0">{t('foods.category')}</label>
+            <select
+              value={form.category}
+              onChange={e => patch({ category: e.target.value as FoodCategory })}
+              className={INPUT_CLASS}
+            >
+              {FOOD_CATEGORIES.map(c => (
+                <option key={c} value={c}>{t(`food.category.${c}`)}</option>
+              ))}
+            </select>
           </div>
 
           {/* Extra nutrition (sugar / sat fat / sodium-or-salt) — only when toggle is on */}

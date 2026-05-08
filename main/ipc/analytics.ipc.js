@@ -253,28 +253,40 @@ function registerAnalyticsIpc() {
       : null;
 
     // ── Top foods (range) ───────────────────────────────────────────────────
+    // Group by canonical (COALESCE(group_id, food_id)) so brand variants of
+    // the same food count together. Display name comes from the canonical row.
     const topFoodsByFreq = db.prepare(`
-      SELECT l.food_id,
-             COALESCE(f.display_name, f.name) AS name,
-             COUNT(*) AS count,
-             SUM(l.grams) AS total_g,
-             SUM(f.calories / 100.0 * l.grams) AS total_kcal
-      FROM log l JOIN foods f ON f.id = l.food_id
-      WHERE l.status = 'logged' AND l.date >= ? AND l.date <= ?
-      GROUP BY l.food_id
+      SELECT canonical_id AS food_id,
+             COALESCE(c.display_name, c.name) AS name,
+             agg_count AS count, agg_g AS total_g, agg_kcal AS total_kcal
+      FROM (
+        SELECT COALESCE(f.group_id, f.id) AS canonical_id,
+               COUNT(*) AS agg_count,
+               SUM(l.grams) AS agg_g,
+               SUM(f.calories / 100.0 * l.grams) AS agg_kcal
+        FROM log l JOIN foods f ON f.id = l.food_id
+        WHERE l.status = 'logged' AND l.date >= ? AND l.date <= ?
+        GROUP BY canonical_id
+      )
+      JOIN foods c ON c.id = canonical_id
       ORDER BY count DESC, total_kcal DESC
       LIMIT 12
     `).all(startDate, todayStr);
 
     const topFoodsByKcal = db.prepare(`
-      SELECT l.food_id,
-             COALESCE(f.display_name, f.name) AS name,
-             COUNT(*) AS count,
-             SUM(l.grams) AS total_g,
-             SUM(f.calories / 100.0 * l.grams) AS total_kcal
-      FROM log l JOIN foods f ON f.id = l.food_id
-      WHERE l.status = 'logged' AND l.date >= ? AND l.date <= ?
-      GROUP BY l.food_id
+      SELECT canonical_id AS food_id,
+             COALESCE(c.display_name, c.name) AS name,
+             agg_count AS count, agg_g AS total_g, agg_kcal AS total_kcal
+      FROM (
+        SELECT COALESCE(f.group_id, f.id) AS canonical_id,
+               COUNT(*) AS agg_count,
+               SUM(l.grams) AS agg_g,
+               SUM(f.calories / 100.0 * l.grams) AS agg_kcal
+        FROM log l JOIN foods f ON f.id = l.food_id
+        WHERE l.status = 'logged' AND l.date >= ? AND l.date <= ?
+        GROUP BY canonical_id
+      )
+      JOIN foods c ON c.id = canonical_id
       ORDER BY total_kcal DESC
       LIMIT 12
     `).all(startDate, todayStr);

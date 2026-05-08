@@ -13,8 +13,10 @@ import Tabs from '../components/ui/Tabs';
 import PageHeader from '../components/ui/PageHeader';
 import OffSuggestions from '../components/OffSuggestions';
 import FoodMatchModal, { type Candidate } from '../components/FoodMatchModal';
+import GroupWithDialog from '../components/foods/GroupWithDialog';
 import { checkMacroConsistency } from '../lib/macroCheck';
-import type { Food, BarcodeResult, FoodPackage } from '../types';
+import type { Food, BarcodeResult, FoodPackage, FoodCategory } from '../types';
+import { FOOD_CATEGORIES } from '../types';
 
 const INPUT_CLASS =
   'bg-bg border border-border rounded-lg px-2 py-1.5 text-text text-sm outline-none focus:border-accent w-full';
@@ -36,9 +38,10 @@ interface FoodFormState {
   sugar: string; saturated_fat: string;
   /** User-entered sodium-mg OR salt-g; converted to sodium_mg at save based on settings.extra_nutrition_unit. */
   sodium_or_salt: string;
+  category: FoodCategory;
 }
 
-const emptyForm = (): FoodFormState => ({ name:'', calories:'', protein:'', carbs:'', fat:'', fiber:'', piece_grams:'', is_liquid: false, is_bulk: true, barcode: '', opened_days: '7', discard_threshold_pct: '5', price_per_100g: '', sugar: '', saturated_fat: '', sodium_or_salt: '' });
+const emptyForm = (): FoodFormState => ({ name:'', calories:'', protein:'', carbs:'', fat:'', fiber:'', piece_grams:'', is_liquid: false, is_bulk: true, barcode: '', opened_days: '7', discard_threshold_pct: '5', price_per_100g: '', sugar: '', saturated_fat: '', sodium_or_salt: '', category: 'other' });
 const foodToForm = (f: Food, unit: 'sodium' | 'salt'): FoodFormState => ({
   name:f.name, calories:String(f.calories), protein:String(f.protein), carbs:String(f.carbs), fat:String(f.fat), fiber:String(f.fiber),
   piece_grams:f.piece_grams!=null?String(f.piece_grams):'',
@@ -52,16 +55,21 @@ const foodToForm = (f: Food, unit: 'sodium' | 'salt'): FoodFormState => ({
   sodium_or_salt: f.sodium_mg != null
     ? (unit === 'salt' ? String(Math.round((f.sodium_mg / 400) * 100) / 100) : String(f.sodium_mg))
     : '',
+  category: f.category ?? 'other',
 });
-const barcodeToForm = (r: BarcodeResult, barcode: string, unit: 'sodium' | 'salt'): FoodFormState => ({
-  name:r.name, calories:String(r.calories), protein:String(r.protein), carbs:String(r.carbs), fat:String(r.fat), fiber:String(r.fiber),
-  piece_grams:'', is_liquid:r.is_liquid===1, is_bulk: false, barcode, opened_days: '7', discard_threshold_pct: '5', price_per_100g: '',
-  sugar: r.sugar != null ? String(r.sugar) : '',
-  saturated_fat: r.saturated_fat != null ? String(r.saturated_fat) : '',
-  sodium_or_salt: r.sodium_mg != null
-    ? (unit === 'salt' ? String(Math.round((r.sodium_mg / 400) * 100) / 100) : String(r.sodium_mg))
-    : '',
-});
+const barcodeToForm = (r: BarcodeResult, barcode: string, unit: 'sodium' | 'salt'): FoodFormState => {
+  const cat = ((r as BarcodeResult & { category?: FoodCategory }).category) || 'other';
+  return {
+    name:r.name, calories:String(r.calories), protein:String(r.protein), carbs:String(r.carbs), fat:String(r.fat), fiber:String(r.fiber),
+    piece_grams:'', is_liquid:r.is_liquid===1, is_bulk: false, barcode, opened_days: '7', discard_threshold_pct: '5', price_per_100g: '',
+    sugar: r.sugar != null ? String(r.sugar) : '',
+    saturated_fat: r.saturated_fat != null ? String(r.saturated_fat) : '',
+    sodium_or_salt: r.sodium_mg != null
+      ? (unit === 'salt' ? String(Math.round((r.sodium_mg / 400) * 100) / 100) : String(r.sodium_mg))
+      : '',
+    category: cat,
+  };
+};
 const formToData = (f: FoodFormState, unit: 'sodium' | 'salt'): Omit<Food,'id'> => {
   const sodiumRaw = f.sodium_or_salt.trim();
   const sodium_mg = sodiumRaw === ''
@@ -78,6 +86,7 @@ const formToData = (f: FoodFormState, unit: 'sodium' | 'salt'): Omit<Food,'id'> 
     sugar: f.sugar.trim() === '' ? null : parseFloat(f.sugar),
     saturated_fat: f.saturated_fat.trim() === '' ? null : parseFloat(f.saturated_fat),
     sodium_mg: sodium_mg != null && !isNaN(sodium_mg) ? sodium_mg : null,
+    category: f.category,
   });
 };
 
@@ -175,9 +184,21 @@ function FormFields({ form, patch, trackExtra = false, unit = 'sodium' }: FormFi
           </div>
         </div>
       )}
-      <div className="flex items-center gap-5 pt-1">
+      <div className="flex items-center gap-3 flex-wrap pt-1">
         <Switch checked={form.is_liquid} onChange={v => patch({ is_liquid: v })} label={`${t('foods.liquid')} 💧`} />
         <Switch checked={form.is_bulk}   onChange={v => patch({ is_bulk: v, piece_grams: v ? '' : form.piece_grams })} label={`${t('foods.bulk')} ⚖️`} title={t('foods.bulkHelp')} />
+        <label className="flex items-center gap-1.5 text-xs text-text-sec ml-auto">
+          {t('foods.category')}
+          <select
+            value={form.category}
+            onChange={e => patch({ category: e.target.value as FoodCategory })}
+            className="bg-bg border border-border rounded-lg px-2 py-1 text-text text-xs outline-none focus:border-accent"
+          >
+            {FOOD_CATEGORIES.map(c => (
+              <option key={c} value={c}>{t(`food.category.${c}`)}</option>
+            ))}
+          </select>
+        </label>
       </div>
     </div>
   );
@@ -203,6 +224,9 @@ export default function FoodsPage() {
   const [newPackGrams, setNewPackGrams] = useState('');
   const [newPackPrice, setNewPackPrice] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState<FoodCategory | 'all'>('all');
+  const [groupWithFood, setGroupWithFood] = useState<Food | null>(null);
+  const [confirmUngroupId, setConfirmUngroupId] = useState<number | null>(null);
   const [barcodeInput, setBarcodeInput] = useState('');
   const [barcodeStatus, setBarcodeStatus] = useState<'found'|'notFound'|null>(null);
   const [scannerOpen, setScannerOpen] = useState(false);
@@ -259,12 +283,30 @@ export default function FoodsPage() {
         }
       } catch { /* network err — fall through to save */ }
     }
+    // Look for similar canonicals among existing foods. If found, the new food
+    // is created normally and we offer to make it a variant via GroupWithDialog.
+    let similarHits: number = 0;
+    try {
+      const sims = await api.foods.findSimilar({
+        name: data.name,
+        calories: data.calories, protein: data.protein, carbs: data.carbs, fat: data.fat,
+        nameMin: 0.4, macroPctMax: 0.20, limit: 1,
+      });
+      similarHits = sims.length;
+    } catch { /* non-fatal */ }
     const { id } = await api.foods.add(data);
     for (const p of addPacks) {
       const g = parseFloat(p.grams);
       if (g > 0) await api.foods.addPackage({ food_id: id, grams: g });
     }
-    setAddForm(emptyForm()); setAddPacks([{ grams: '' }]); setPackFromBarcode(null); setBarcodeInput(''); setBarcodeStatus(null); showToast(t('common.saved')); loadFoods();
+    setAddForm(emptyForm()); setAddPacks([{ grams: '' }]); setPackFromBarcode(null); setBarcodeInput(''); setBarcodeStatus(null); showToast(t('common.saved'));
+    await loadFoods();
+    if (similarHits > 0) {
+      // Re-fetch the newly-saved food row so GroupWithDialog has the actual id.
+      const fresh = await api.foods.getAll();
+      const newFood = fresh.find(f => f.id === id);
+      if (newFood) setGroupWithFood(newFood);
+    }
   }
 
   function updateAddPackGrams(i: number, grams: string) { setAddPacks(p => p.map((x, idx) => idx === i ? { grams } : x)); }
@@ -394,8 +436,11 @@ export default function FoodsPage() {
 
   const filteredFoods = useMemo(()=>{
     const q = searchQuery.toLowerCase();
-    return q ? foods.filter(f=>f.name.toLowerCase().includes(q)) : foods;
-  },[foods, searchQuery]);
+    let list = foods;
+    if (categoryFilter !== 'all') list = list.filter(f => (f.category ?? 'other') === categoryFilter);
+    if (q) list = list.filter(f => f.name.toLowerCase().includes(q));
+    return list;
+  },[foods, searchQuery, categoryFilter]);
 
   const foodSearchItems: SearchItem[] = useMemo(
     () => foods.map(f => ({ ...f, isRecipe: false as const, _freq: 0 })),
@@ -676,6 +721,21 @@ export default function FoodsPage() {
           >{t('foods.detailMode')}</button>
         </div>
 
+        {/* Category filter chips */}
+        <div className="flex items-center gap-1.5 flex-wrap shrink-0">
+          {(['all', ...FOOD_CATEGORIES] as const).map(c => {
+            const active = categoryFilter === c;
+            const label = c === 'all' ? t('foods.allCategories') : t(`food.category.${c}`);
+            return (
+              <button
+                key={c}
+                onClick={() => setCategoryFilter(c)}
+                className={['text-xs px-2.5 py-1 rounded-full border transition-colors cursor-pointer', active ? 'border-accent text-accent bg-accent/10' : 'border-border text-text-sec hover:border-accent/50 hover:text-text'].join(' ')}
+              >{label}</button>
+            );
+          })}
+        </div>
+
         {filteredFoods.length === 0 ? (
           <p className="text-text-sec text-sm py-4">{t('foods.noFoods')}</p>
         ) : (
@@ -685,6 +745,7 @@ export default function FoodsPage() {
                 <tr className="text-text-sec text-xs uppercase tracking-wider border-b border-border">
                   <th className="px-2 py-3 w-8"></th>
                   <th className="px-3 py-3 text-left">{t('th.food')}</th>
+                  <th className="px-3 py-3 text-left text-xs">{t('foods.category')}</th>
                   <th className="px-3 py-3 text-right"><span className="inline-flex items-center justify-end gap-1.5"><span className="w-1.5 h-1.5 rounded-full" style={{ background: MACRO_DOT.calories }} />{t('th.kcal')}</span></th>
                   <th className="px-3 py-3 text-right"><span className="inline-flex items-center justify-end gap-1.5"><span className="w-1.5 h-1.5 rounded-full" style={{ background: MACRO_DOT.fat }} />{t('th.fat')}</span></th>
                   <th className="px-3 py-3 text-right"><span className="inline-flex items-center justify-end gap-1.5"><span className="w-1.5 h-1.5 rounded-full" style={{ background: MACRO_DOT.carbs }} />{t('th.carbs')}</span></th>
@@ -706,7 +767,7 @@ export default function FoodsPage() {
                       <td className="px-2 py-2">
                         <button type="button" onClick={()=>handleToggleFavorite(food.id)} className="text-base cursor-pointer">{food.favorite===1?'⭐':'☆'}</button>
                       </td>
-                      <td colSpan={detailMode ? 9 : 8} className="px-3 py-2">
+                      <td colSpan={detailMode ? 10 : 9} className="px-3 py-2">
                         <FormFields form={editForm} patch={patchEdit} trackExtra={trackExtra} unit={unit} />
                         {detailMode && (
                           <div className="flex flex-wrap gap-3 mt-2">
@@ -820,7 +881,18 @@ export default function FoodsPage() {
                       <td className="px-2 py-2.5">
                         <button type="button" onClick={()=>handleToggleFavorite(food.id)} className="text-base cursor-pointer hover:scale-110 transition-transform">{food.favorite===1?'⭐':'☆'}</button>
                       </td>
-                      <td className="px-3 py-2.5 text-text font-medium">{food.name}</td>
+                      <td className="px-3 py-2.5 text-text font-medium">
+                        <div className="flex flex-col">
+                          <span>{food.name}</span>
+                          {food.group_id != null && (
+                            <span className="text-[10px] text-text-sec/70">↳ {t('foods.partOf')} #{food.group_id}</span>
+                          )}
+                          {food.variant_count != null && food.variant_count > 0 && (
+                            <span className="text-[10px] text-accent/80">{food.variant_count} {t('foods.variants')}</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-3 py-2.5 text-text-sec text-xs">{t(`food.category.${food.category ?? 'other'}`)}</td>
                       <td className="px-3 py-2.5 text-right text-text tabular-nums">{food.calories}</td>
                       <td className="px-3 py-2.5 text-right text-text-sec tabular-nums">{food.fat}</td>
                       <td className="px-3 py-2.5 text-right text-text-sec tabular-nums">{food.carbs}</td>
@@ -833,7 +905,22 @@ export default function FoodsPage() {
                       {detailMode && <td className="px-3 py-2.5 text-right text-text-sec tabular-nums text-xs">{food.discard_threshold_pct != null ? `${food.discard_threshold_pct}%` : '—'}</td>}
                       {detailMode && <td className="px-3 py-2.5 text-right text-text-sec tabular-nums text-xs">{food.price_per_100g != null ? `${settings.currency_symbol ?? '€'}${food.price_per_100g}` : '—'}</td>}
                       <td className="px-2 py-2.5">
-                        <div className="flex gap-1 justify-end">
+                        <div className="flex gap-1 justify-end items-center">
+                          {food.group_id != null ? (
+                            <button
+                              type="button"
+                              onClick={() => setConfirmUngroupId(food.id)}
+                              className="text-[10px] uppercase tracking-wider text-text-sec hover:text-accent border border-border hover:border-accent rounded px-1.5 py-0.5 cursor-pointer transition-colors"
+                              title={t('foods.ungroup')}
+                            >{t('foods.ungroup')}</button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setGroupWithFood(food)}
+                              className="text-[10px] uppercase tracking-wider text-text-sec hover:text-accent border border-border hover:border-accent rounded px-1.5 py-0.5 cursor-pointer transition-colors"
+                              title={t('foods.groupWith')}
+                            >🔗</button>
+                          )}
                           <button type="button" onClick={()=>startEdit(food)} className="text-text-sec hover:text-text px-1 cursor-pointer"><span style={{ display: 'inline-block', transform: 'scaleX(-1) rotate(15deg)' }}>✎</span></button>
                           <button type="button" onClick={() => setDeleteId(food.id)} className="text-text-sec hover:text-red px-1 cursor-pointer transition-colors">✕</button>
                         </div>
@@ -964,6 +1051,29 @@ export default function FoodsPage() {
           dangerous
           onConfirm={() => handleDelete(deleteId)}
           onCancel={() => setDeleteId(null)}
+        />
+      )}
+
+      {groupWithFood && (
+        <GroupWithDialog
+          food={groupWithFood}
+          onClose={() => setGroupWithFood(null)}
+          onGrouped={() => { setGroupWithFood(null); loadFoods(); showToast(t('common.saved')); }}
+        />
+      )}
+
+      {confirmUngroupId !== null && (
+        <ConfirmDialog
+          message={t('foods.confirmUngroupMsg')}
+          confirmLabel={t('foods.ungroup')}
+          cancelLabel={t('common.cancel')}
+          onConfirm={async () => {
+            await api.foods.ungroup(confirmUngroupId);
+            setConfirmUngroupId(null);
+            loadFoods();
+            showToast(t('common.saved'));
+          }}
+          onCancel={() => setConfirmUngroupId(null)}
         />
       )}
 

@@ -124,6 +124,34 @@ function registerLogIpc() {
     const db = getDb();
     const d = date || today();
     const s = status || 'logged';
+    // Pantry-aware variant pick: when logging a canonical (group_id IS NULL,
+    // has variants) and any variant is currently in stock, log against that
+    // variant instead. The most-recently-used variant wins ties. If nothing
+    // is in stock, the canonical is logged as-is.
+    {
+      const food = db.prepare('SELECT id, group_id FROM foods WHERE id = ?').get(food_id);
+      if (food && food.group_id == null) {
+        const variantCount = db.prepare('SELECT COUNT(*) AS n FROM foods WHERE group_id = ?').get(food_id).n;
+        if (variantCount > 0) {
+          const params = pantry_id != null
+            ? [food_id, pantry_id]
+            : [food_id];
+          const inStock = db.prepare(`
+            SELECT v.id, v.name,
+              (SELECT MAX(l.id) FROM log l WHERE l.food_id = v.id) AS last_log_id
+            FROM foods v
+            JOIN pantry p ON p.food_id = v.id ${pantry_id != null ? 'AND p.pantry_id = ?' : ''}
+            WHERE v.group_id = ? AND p.quantity_g > 0
+            GROUP BY v.id
+            ORDER BY last_log_id DESC NULLS LAST, v.id ASC
+            LIMIT 1
+          `).get(...(pantry_id != null ? [pantry_id, food_id] : [food_id]));
+          if (inStock && inStock.id) food_id = inStock.id;
+          // Suppress unused-warn on the params we constructed
+          void params;
+        }
+      }
+    }
     let logId, shortage = 0, shortage_food = null, events = [];
     db.transaction(() => {
       const result = db.prepare(

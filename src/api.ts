@@ -1,5 +1,5 @@
 import type {
-  Food, FrequentFood, LogEntry, Meal, Recipe, ActualRecipe, Exercise, ExerciseType, Settings,
+  Food, FrequentFood, LogEntry, Meal, Recipe, ActualRecipe, Exercise, ExerciseType, Settings, SimilarFood,
   WeightEntry, WaterDay, DailyNote, Streak,
   Supplement, SupplementDay, SupplementAdherence,
   SupplementPlanWithItems,
@@ -49,6 +49,12 @@ export const api = {
     addPackage:     (data: { food_id: number; grams: number; price?: number | null }) => invoke<{ id: number }>('foods:addPackage', data),
     updatePackage:  (data: { id: number; grams: number; price?: number | null }) => invoke<{ ok: boolean; error?: string; batch_count?: number }>('foods:updatePackage', data),
     deletePackage:  (id: number) => invoke<{ ok: boolean; error?: string; batch_count?: number }>('foods:deletePackage', { id }),
+    groupAs:        (data: { variant_id: number; canonical_id: number; recompute?: boolean }) =>
+                      invoke<{ ok: boolean; canonical_id?: number; reason?: string }>('foods:groupAs', data),
+    ungroup:        (variant_id: number) => invoke<{ ok: boolean }>('foods:ungroup', { variant_id }),
+    recomputeGroupAverages: (canonical_id: number) => invoke<{ ok: boolean }>('foods:recomputeGroupAverages', { canonical_id }),
+    findSimilar:    (data: { name: string; calories?: number; protein?: number; carbs?: number; fat?: number; exclude_id?: number; nameMin?: number; macroPctMax?: number; limit?: number }) =>
+                      invoke<SimilarFood[]>('foods:findSimilar', data),
   },
 
   log: {

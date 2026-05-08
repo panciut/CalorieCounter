@@ -1,6 +1,7 @@
 const { ipcMain } = require('electron');
 const { getDb } = require('../db');
 const offDb = require('../lib/offDb');
+const { categoryFromOffTags } = require('../lib/offCategoryMap');
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -46,7 +47,9 @@ const r2 = v => Math.round((v || 0) * 100) / 100;
 
 function mapProduct(p) {
   const n = p.nutriments || {};
-  const isLiquid = (p.categories_tags || []).some(tag => LIQUID_TAGS.has((tag || '').toLowerCase()));
+  const tags = p.categories_tags || [];
+  const isLiquid = tags.some(tag => LIQUID_TAGS.has((tag || '').toLowerCase()));
+  const category = categoryFromOffTags(tags);
   // Italian-market products on it.openfoodfacts.org often have only `product_name_it`
   // populated (no generic `product_name`). Fall back through every localized variant
   // before giving up — otherwise the typeahead silently shows blank rows.
@@ -70,6 +73,8 @@ function mapProduct(p) {
     pack_grams:     parseGrams(p.quantity),
     barcode:        p.code || '',
     brand:          (p.brands || '').split(',')[0].trim(),
+    categories_tags: tags.join(','),
+    category,
   };
 }
 
@@ -138,6 +143,7 @@ function onlineDisabled() {
 
 function rowToBarcodeResult(r) {
   if (!r) return null;
+  const tags = r.categories_tags ? String(r.categories_tags).split(',').filter(Boolean) : [];
   return {
     name: r.name,
     name_en: r.name,
@@ -154,6 +160,8 @@ function rowToBarcodeResult(r) {
     pack_grams: r.pack_grams,
     barcode: r.code,
     brand: r.brand || '',
+    categories_tags: r.categories_tags || '',
+    category: tags.length > 0 ? categoryFromOffTags(tags) : 'other',
   };
 }
 
@@ -204,14 +212,15 @@ function cacheLiveResult(r) {
   try {
     offDb.getOffDb().prepare(`
       INSERT OR REPLACE INTO products
-        (code, name, brand, calories, protein, carbs, fat, fiber, sugar, saturated_fat, sodium_mg, pack_grams, is_liquid, completeness)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (code, name, brand, calories, protein, carbs, fat, fiber, sugar, saturated_fat, sodium_mg, pack_grams, is_liquid, completeness, categories_tags)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       r.barcode, r.name, r.brand || null,
       r.calories || 0, r.protein || 0, r.carbs || 0, r.fat || 0, r.fiber || 0,
       r.sugar ?? null, r.saturated_fat ?? null, r.sodium_mg ?? null, r.pack_grams ?? null,
       r.is_liquid ? 1 : 0,
       0.5,
+      r.categories_tags || null,
     );
   } catch (e) { console.error('cacheLiveResult error:', e.message); }
 }

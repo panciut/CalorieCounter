@@ -360,6 +360,10 @@ function initDb() {
     "CREATE INDEX IF NOT EXISTS idx_daily_energy_date   ON daily_energy(date)",
     "CREATE INDEX IF NOT EXISTS idx_supplement_log_date ON supplement_log(date)",
     "CREATE INDEX IF NOT EXISTS idx_pantry_food_id      ON pantry(food_id)",
+    "ALTER TABLE foods ADD COLUMN category TEXT NOT NULL DEFAULT 'other'",
+    "ALTER TABLE foods ADD COLUMN group_id INTEGER REFERENCES foods(id) ON DELETE SET NULL",
+    "CREATE INDEX IF NOT EXISTS idx_foods_category ON foods(category)",
+    "CREATE INDEX IF NOT EXISTS idx_foods_group_id ON foods(group_id)",
     `CREATE TABLE IF NOT EXISTS goal_plans (
       id              INTEGER PRIMARY KEY AUTOINCREMENT,
       effective_from  TEXT NOT NULL UNIQUE,

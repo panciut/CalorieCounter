@@ -1,7 +1,51 @@
 const { app, BrowserWindow, ipcMain, globalShortcut, session, systemPreferences } = require('electron');
 const path = require('path');
-const { initDb } = require('./db');
+const { initDb, getDb } = require('./db');
 const { seedDev } = require('./seed_dev');
+const offDb = require('./lib/offDb');
+const { categoryFromOffTags } = require('./lib/offCategoryMap');
+
+// One-time backfill: for foods with a barcode whose category is still 'other',
+// look up off_cache.products.categories_tags and derive a real category.
+function backfillFoodCategoriesFromOff() {
+  const db = getDb();
+  try {
+    const seeded = db.prepare("SELECT value FROM settings WHERE key = 'schema.foods_category_backfill_v1'").get();
+    if (seeded) return;
+    if (!offDb.exists()) {
+      // No mirror yet — nothing to derive from. We'll try again next launch.
+      return;
+    }
+    const rows = db.prepare(
+      "SELECT id, barcode FROM foods WHERE barcode IS NOT NULL AND (category IS NULL OR category = 'other') AND is_placeholder = 0"
+    ).all();
+    if (rows.length === 0) {
+      db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('schema.foods_category_backfill_v1', '1')").run();
+      return;
+    }
+    const lookup = offDb.getOffDb().prepare("SELECT categories_tags FROM products WHERE code = ?");
+    const update = db.prepare("UPDATE foods SET category = ? WHERE id = ?");
+    let updated = 0;
+    db.transaction(() => {
+      for (const f of rows) {
+        const r = lookup.get(String(f.barcode));
+        if (!r || !r.categories_tags) continue;
+        const tags = String(r.categories_tags).split(',').filter(Boolean);
+        const cat = categoryFromOffTags(tags);
+        if (cat && cat !== 'other') {
+          update.run(cat, f.id);
+          updated++;
+        }
+      }
+    })();
+    // Only mark as done when we've actually mapped at least one row; otherwise
+    // a future OFF mirror refresh can fill in categories_tags and we'll retry.
+    if (updated > 0) {
+      db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('schema.foods_category_backfill_v1', '1')").run();
+    }
+    console.log(`[backfill] foods category: updated ${updated}/${rows.length} rows`);
+  } catch (e) { console.error('foods category backfill failed:', e.message); }
+}
 
 const registerFoodsIpc    = require('./ipc/foods.ipc');
 const registerLogIpc      = require('./ipc/log.ipc');
@@ -69,6 +113,7 @@ function createWindow() {
 app.whenReady().then(async () => {
   initDb();
   seedDev();
+  backfillFoodCategoriesFromOff();
 
   // Grant camera (and mic) for barcode scanner. Electron denies media by default.
   session.defaultSession.setPermissionRequestHandler((_wc, permission, callback) => {

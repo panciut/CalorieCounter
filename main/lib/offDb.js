@@ -49,7 +49,8 @@ function applySchema(db) {
       sodium_mg       REAL,
       pack_grams      REAL,
       is_liquid       INTEGER NOT NULL DEFAULT 0,
-      completeness    REAL NOT NULL DEFAULT 0
+      completeness    REAL NOT NULL DEFAULT 0,
+      categories_tags TEXT
     );
 
     CREATE VIRTUAL TABLE IF NOT EXISTS products_fts USING fts5(
@@ -77,6 +78,12 @@ function applySchema(db) {
       value TEXT NOT NULL
     );
   `);
+
+  // Idempotent migration for older mirrors that lack categories_tags
+  try { db.exec('ALTER TABLE products ADD COLUMN categories_tags TEXT'); }
+  catch (e) {
+    if (!/duplicate column/i.test(String(e?.message))) throw e;
+  }
 
   // Stamp schema version
   db.prepare('INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)').run('schema_version', String(SCHEMA_VERSION));
