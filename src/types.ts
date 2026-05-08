@@ -731,6 +731,28 @@ export interface MealTemplate {
   items: MealTemplateItem[];
 }
 
+export interface SuggestionFood extends Food {
+  last_date?: string;
+  total_count?: number;
+  total_in_pantry_g?: number;
+}
+
+export interface SuggestionCombo {
+  cnt: number;
+  a: Food;
+  b: Food;
+}
+
+export interface SuggestionsBundle {
+  slot: Meal;
+  forgottenFavorites: SuggestionFood[];
+  triedFew: SuggestionFood[];
+  rotationGap: SuggestionFood[];
+  combos: SuggestionCombo[];
+  fromPantry: SuggestionFood[];
+  neverTried: SuggestionFood[];
+}
+
 export type GoalType = 'lose' | 'maintain' | 'gain' | 'custom';
 
 export interface TDEEResult {
@@ -813,6 +835,7 @@ export type PageName =
   | 'week'
   | 'day'
   | 'plan'
+  | 'suggestions'
   | 'weight'
   | 'supplements'
   | 'measurements'

@@ -237,6 +237,9 @@ export const api = {
     foodsFromText:  (text: string) => invoke<{ ok: boolean; imported: number; skipped: number; error?: string }>('import:foodsFromText', { text }),
     fullJson:   (filePath: string) => invoke<{ ok: boolean; stats: Record<string, number> }>('import:fullJson', { filePath }),
     backup:     (filePath: string) => invoke<{ ok: boolean; error?: string }>('import:backup', { filePath }),
+    plan:       (filePath: string) => invoke<{ ok: boolean; schemaVersion: number | null; range: { start: string; end: string } | null; counts: Record<string, number>; error?: string }>('import:plan', { filePath }),
+    execute:    (data: { filePath: string; plan: Record<string, { include: boolean; mode: 'merge' | 'replace' }> }) =>
+                  invoke<{ ok: boolean; stats: Record<string, number> }>('import:execute', data),
   },
 
   export: {
@@ -244,6 +247,8 @@ export const api = {
     foods:  () => invoke<{ ok: boolean; count?: number }>('export:foods'),
     pantry: () => invoke<{ ok: boolean; count?: number }>('export:pantry'),
     backup: () => invoke<{ ok: boolean; path?: string }>('export:backup'),
+    bundle: (data: { format: 'markdown' | 'json' | 'meals_md'; start?: string; end?: string }) =>
+              invoke<{ ok: boolean; path?: string }>('export:bundle', data),
   },
 
   measurements: {
@@ -308,6 +313,10 @@ export const api = {
     macroTrend:     (days: number) => invoke<MacroTrendPoint[]>('analytics:macroTrend', { days }),
     exerciseTrend:  (days: number) => invoke<ExerciseTrendPoint[]>('analytics:exerciseTrend', { days }),
     stats:          (days: number | 'all') => invoke<import('./types').StatsBundle>('analytics:stats', { days }),
+  },
+
+  suggestions: {
+    getBundle: () => invoke<import('./types').SuggestionsBundle>('suggestions:getBundle'),
   },
 
   templates: {

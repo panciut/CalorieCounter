@@ -121,6 +121,33 @@ function registerExportIpc() {
     return { ok: true, path: result.filePath, count: pantry.length };
   });
 
+  // ── AI-friendly bundle export (Markdown daily journal / single JSON / meals-only MD)
+  // Optional date range. Output is a single file (.md or .json).
+  ipcMain.handle('export:bundle', async (_, { format, start, end }) => {
+    const db = getDb();
+    const today = new Date().toISOString().slice(0, 10);
+    const startDate = (start || '0000-01-01').slice(0, 10);
+    const endDate   = (end   || today).slice(0, 10);
+
+    const ext = format === 'json' ? 'json' : 'md';
+    const result = await dialog.showSaveDialog({
+      defaultPath: `caloriecounter-${startDate}_${endDate}.${ext}`,
+      filters: [{ name: ext.toUpperCase(), extensions: [ext] }],
+    });
+    if (result.canceled || !result.filePath) return { ok: false };
+
+    if (format === 'json') {
+      const data = collectFullJson(db, startDate, endDate);
+      fs.writeFileSync(result.filePath, JSON.stringify(data, null, 2), 'utf-8');
+      return { ok: true, path: result.filePath };
+    }
+
+    // Markdown bundle (or meals-only Markdown)
+    const md = buildJournalMarkdown(db, startDate, endDate, format === 'meals_md');
+    fs.writeFileSync(result.filePath, md, 'utf-8');
+    return { ok: true, path: result.filePath };
+  });
+
   // ── Export full database backup (.db file) ────────────────────────────────
   ipcMain.handle('export:backup', async () => {
     const result = await dialog.showSaveDialog({
@@ -135,6 +162,156 @@ function registerExportIpc() {
     fs.copyFileSync(getDbPath(), result.filePath);
     return { ok: true, path: result.filePath };
   });
+}
+
+// ── Bundle helpers ───────────────────────────────────────────────────────────
+
+const MEAL_ORDER = ['Breakfast', 'MorningSnack', 'Lunch', 'AfternoonSnack', 'Dinner', 'EveningSnack', 'NightSnack'];
+
+function r(n, d = 1) {
+  const f = Math.pow(10, d);
+  return Math.round(((n || 0) * f)) / f;
+}
+
+function goalForDate(db, date) {
+  return db.prepare(`SELECT * FROM goal_plans WHERE effective_from <= ? ORDER BY effective_from DESC LIMIT 1`).get(date) || null;
+}
+
+function buildJournalMarkdown(db, startDate, endDate, mealsOnly) {
+  const days = db.prepare(`
+    SELECT DISTINCT date FROM (
+      SELECT date FROM log WHERE date BETWEEN ? AND ?
+      UNION SELECT date FROM weight_log WHERE date BETWEEN ? AND ?
+      UNION SELECT date FROM water_log WHERE date BETWEEN ? AND ?
+      UNION SELECT date FROM exercises WHERE date BETWEEN ? AND ?
+    ) ORDER BY date
+  `).all(startDate, endDate, startDate, endDate, startDate, endDate, startDate, endDate).map(r => r.date);
+
+  const lines = [];
+  lines.push(`# CalorieCounter — daily journal`);
+  lines.push(`Range: **${startDate} → ${endDate}** · ${days.length} days · Generated ${new Date().toISOString().slice(0, 10)}`);
+  lines.push('');
+  if (!mealsOnly) {
+    // Goal periods overview
+    const plans = db.prepare(`SELECT * FROM goal_plans WHERE effective_from <= ? ORDER BY effective_from`).all(endDate);
+    const intersecting = plans.filter((p, i) => {
+      const next = plans[i + 1];
+      return p.effective_from <= endDate && (!next || next.effective_from > startDate);
+    });
+    if (intersecting.length > 0) {
+      lines.push('## Goal periods');
+      for (let i = 0; i < intersecting.length; i++) {
+        const p = intersecting[i];
+        const nextStart = intersecting[i + 1]?.effective_from ?? 'current';
+        const lbl = p.label ? ` — ${p.label}` : '';
+        lines.push(`- ${p.effective_from} → ${nextStart}${lbl} (${p.goal_type}): ${p.cal_rec ?? '—'} kcal · P${p.protein_rec ?? '—'} C${p.carbs_rec ?? '—'} F${p.fat_rec ?? '—'} Fib${p.fiber_rec ?? '—'}`);
+        if (p.notes) lines.push(`  - notes: ${p.notes.replace(/\n/g, ' ')}`);
+      }
+      lines.push('');
+    }
+  }
+
+  for (const d of days) {
+    const dayName = new Date(d + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long' });
+    lines.push(`## ${d} — ${dayName}`);
+
+    const entries = db.prepare(`
+      SELECT l.id, l.meal, l.status, COALESCE(f.display_name, f.name) AS name, l.grams, f.category,
+        ROUND(f.calories * l.grams / 100, 2) AS kcal,
+        ROUND(f.protein  * l.grams / 100, 2) AS protein,
+        ROUND(f.carbs    * l.grams / 100, 2) AS carbs,
+        ROUND(f.fat      * l.grams / 100, 2) AS fat,
+        ROUND(f.fiber    * l.grams / 100, 2) AS fiber
+      FROM log l JOIN foods f ON f.id = l.food_id
+      WHERE l.date = ? AND l.status = 'logged'
+      ORDER BY l.id
+    `).all(d);
+
+    const totals = entries.reduce((s, e) => ({
+      kcal:    s.kcal    + (e.kcal    || 0),
+      protein: s.protein + (e.protein || 0),
+      carbs:   s.carbs   + (e.carbs   || 0),
+      fat:     s.fat     + (e.fat     || 0),
+      fiber:   s.fiber   + (e.fiber   || 0),
+    }), { kcal: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 });
+
+    const goal = goalForDate(db, d);
+    const tg = goal && goal.cal_rec ? ` · target ${goal.cal_rec} kcal` : '';
+    lines.push(`**Totals**: ${r(totals.kcal, 0)} kcal · ${r(totals.protein)}P / ${r(totals.carbs)}C / ${r(totals.fat)}F / ${r(totals.fiber)} fib${tg}`);
+
+    if (!mealsOnly) {
+      const wt = db.prepare('SELECT weight, fat_pct FROM weight_log WHERE date = ?').get(d);
+      if (wt) lines.push(`**Weight**: ${wt.weight} kg${wt.fat_pct != null ? ` · ${wt.fat_pct}% fat` : ''}`);
+
+      const exs = db.prepare(`SELECT type, duration_min, calories_burned FROM exercises WHERE date = ?`).all(d);
+      if (exs.length > 0) {
+        const total = exs.reduce((s, e) => s + (e.calories_burned || 0), 0);
+        lines.push(`**Exercise**: ${exs.map(e => `${e.type} ${e.duration_min}min`).join(', ')} (${r(total, 0)} kcal)`);
+      }
+
+      const water = db.prepare('SELECT SUM(ml) AS total FROM water_log WHERE date = ?').get(d);
+      if (water && water.total) lines.push(`**Water**: ${(water.total / 1000).toFixed(1)} L`);
+    }
+
+    // Meal sections
+    const byMeal = new Map();
+    for (const e of entries) {
+      if (!byMeal.has(e.meal)) byMeal.set(e.meal, []);
+      byMeal.get(e.meal).push(e);
+    }
+    for (const m of MEAL_ORDER) {
+      const items = byMeal.get(m);
+      if (!items || items.length === 0) continue;
+      const subtotal = items.reduce((s, i) => s + (i.kcal || 0), 0);
+      lines.push(`### ${m} (${r(subtotal, 0)} kcal)`);
+      for (const it of items) {
+        lines.push(`- ${it.name} ${r(it.grams, 1)}g — ${r(it.kcal, 0)} kcal · ${r(it.protein)}P / ${r(it.carbs)}C / ${r(it.fat)}F${it.category && it.category !== 'other' ? ` · _${it.category}_` : ''}`);
+      }
+    }
+
+    if (!mealsOnly) {
+      const note = db.prepare('SELECT note FROM daily_notes WHERE date = ?').get(d);
+      if (note && note.note && note.note.trim()) {
+        lines.push('### Notes');
+        lines.push(note.note.trim());
+      }
+    }
+
+    lines.push('');
+  }
+
+  return lines.join('\n');
+}
+
+function collectFullJson(db, startDate, endDate) {
+  const inRange = `BETWEEN '${startDate}' AND '${endDate}'`;
+  return {
+    schemaVersion: 1,
+    range: { start: startDate, end: endDate },
+    generatedAt: new Date().toISOString(),
+    foods: db.prepare(`SELECT * FROM foods WHERE is_placeholder = 0 ORDER BY name`).all(),
+    food_packages: db.prepare(`SELECT * FROM food_packages`).all(),
+    log: db.prepare(`SELECT * FROM log WHERE date ${inRange} ORDER BY date, id`).all(),
+    weight_log:    db.prepare(`SELECT * FROM weight_log    WHERE date ${inRange} ORDER BY date`).all(),
+    water_log:     db.prepare(`SELECT * FROM water_log     WHERE date ${inRange} ORDER BY date, id`).all(),
+    exercises:     db.prepare(`SELECT * FROM exercises     WHERE date ${inRange} ORDER BY date, id`).all(),
+    daily_notes:   db.prepare(`SELECT * FROM daily_notes   WHERE date ${inRange} ORDER BY date`).all(),
+    daily_energy:  db.prepare(`SELECT * FROM daily_energy  WHERE date ${inRange} ORDER BY date`).all(),
+    body_measurements: db.prepare(`SELECT * FROM body_measurements WHERE date ${inRange} ORDER BY date`).all(),
+    supplement_log: db.prepare(`SELECT * FROM supplement_log WHERE date ${inRange} ORDER BY date, id`).all(),
+    supplements: db.prepare(`SELECT * FROM supplements`).all(),
+    supplement_plans: db.prepare(`SELECT * FROM supplement_plans ORDER BY effective_from`).all(),
+    supplement_plan_items: db.prepare(`SELECT * FROM supplement_plan_items`).all(),
+    goal_plans: db.prepare(`SELECT * FROM goal_plans ORDER BY effective_from`).all(),
+    pantries: db.prepare(`SELECT * FROM pantries`).all(),
+    pantry: db.prepare(`SELECT * FROM pantry`).all(),
+    recipes: db.prepare(`SELECT * FROM recipes`).all(),
+    recipe_ingredients: db.prepare(`SELECT * FROM recipe_ingredients`).all(),
+    actual_recipes: db.prepare(`SELECT * FROM actual_recipes`).all(),
+    actual_recipe_ingredients: db.prepare(`SELECT * FROM actual_recipe_ingredients`).all(),
+    meal_templates: db.prepare(`SELECT * FROM meal_templates`).all(),
+    template_items: db.prepare(`SELECT * FROM template_items`).all(),
+  };
 }
 
 module.exports = registerExportIpc;

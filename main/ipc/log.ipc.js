@@ -34,7 +34,7 @@ function registerLogIpc() {
   ipcMain.handle('log:getDay', (_, { date }) => {
     const d = date || today();
     return getDb().prepare(`
-      SELECT l.id, l.food_id, l.meal, l.status, COALESCE(f.display_name, f.name) AS name, l.grams,
+      SELECT l.id, l.food_id, l.date, l.meal, l.status, COALESCE(f.display_name, f.name) AS name, l.grams,
         ROUND(f.calories * l.grams / 100, 2) AS calories,
         ROUND(f.protein  * l.grams / 100, 2) AS protein,
         ROUND(f.carbs    * l.grams / 100, 2) AS carbs,
@@ -51,7 +51,7 @@ function registerLogIpc() {
   ipcMain.handle('log:getPlanned', (_, { date }) => {
     const d = date || today();
     return getDb().prepare(`
-      SELECT l.id, l.food_id, l.meal, l.status, COALESCE(f.display_name, f.name) AS name, l.grams,
+      SELECT l.id, l.food_id, l.date, l.meal, l.status, COALESCE(f.display_name, f.name) AS name, l.grams,
         ROUND(f.calories * l.grams / 100, 2) AS calories,
         ROUND(f.protein  * l.grams / 100, 2) AS protein,
         ROUND(f.carbs    * l.grams / 100, 2) AS carbs,

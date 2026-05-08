@@ -4,6 +4,8 @@ import { useToast } from '../components/Toast';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { BulkRefillModal, BulkMatchModal } from '../components/BulkOffOpsModal';
 import OffLocalCard from '../components/OffLocalCard';
+import ExportDialog from '../components/data/ExportDialog';
+import ImportDialog from '../components/data/ImportDialog';
 import { copyToClipboard } from '../lib/exportText';
 import { useT } from '../i18n/useT';
 import PageHeader from '../components/ui/PageHeader';
@@ -66,6 +68,8 @@ export default function DataPage() {
   const [confirmRestore, setConfirmRestore] = useState(false);
   const [restorePath, setRestorePath]     = useState('');
   const [refillOpen, setRefillOpen]       = useState(false);
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [importPath, setImportPath] = useState<string | null>(null);
   const [refillRefreshMacros, setRefillRefreshMacros] = useState(false);
   const [matchOpen, setMatchOpen]         = useState(false);
 
@@ -151,6 +155,12 @@ export default function DataPage() {
     } finally { setImporting(false); }
   }
 
+  async function handleSelectiveImport() {
+    const filePath = await api.import.selectFile(['json']);
+    if (!filePath) return;
+    setImportPath(filePath);
+  }
+
   async function handlePickRestoreFile() {
     const filePath = await api.import.selectFile(['db']);
     if (!filePath) return;
@@ -182,6 +192,7 @@ export default function DataPage() {
           <p className={sectionTitle}>{t('data.exportData')}</p>
           <p className={desc}>{t('data.exportDataDesc')}</p>
           <div className="flex gap-3 flex-wrap">
+            <button onClick={() => setExportDialogOpen(true)} className={btn()}>{t('export.openDialog')}</button>
             <button onClick={() => handleExportData('json')} className={btn()}>{t('data.exportJson')}</button>
             <button onClick={() => handleExportData('csv')}  className={btn()}>{t('data.exportCsv')}</button>
           </div>
@@ -288,9 +299,14 @@ export default function DataPage() {
         <div className={card}>
           <p className={sectionTitle}>{t('data.importFullJson')}</p>
           <p className={desc}>{t('data.importFullDesc')}</p>
-          <button onClick={handleImportFullJson} disabled={importing} className={btn()}>
-            {importing ? t('data.importing') : t('data.importFullBtn')}
-          </button>
+          <div className="flex gap-3 flex-wrap">
+            <button onClick={handleSelectiveImport} disabled={importing} className={btn()}>
+              {t('import.selectivePicker')}
+            </button>
+            <button onClick={handleImportFullJson} disabled={importing} className={btn()}>
+              {importing ? t('data.importing') : t('data.importFullBtn')}
+            </button>
+          </div>
         </div>
 
         {/* Restore DB */}
@@ -340,6 +356,16 @@ export default function DataPage() {
           dangerous
           onConfirm={handleConfirmRestore}
           onCancel={() => setConfirmRestore(false)}
+        />
+      )}
+
+      {exportDialogOpen && <ExportDialog onClose={() => setExportDialogOpen(false)} />}
+
+      {importPath && (
+        <ImportDialog
+          filePath={importPath}
+          onClose={() => setImportPath(null)}
+          onDone={() => { setImportPath(null); showToast(t('common.saved')); }}
         />
       )}
 
