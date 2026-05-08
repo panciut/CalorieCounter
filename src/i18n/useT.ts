@@ -26,6 +26,7 @@ export function useT() {
       AfternoonSnack: 'meal.afternoonSnack',
       Dinner:         'meal.dinner',
       EveningSnack:   'meal.eveningSnack',
+      NightSnack:     'meal.nightSnack',
       // legacy fallback for any pre-migration data still in memory
       Snack:          'meal.afternoonSnack',
     };

@@ -93,6 +93,52 @@ function registerTemplatesIpc() {
       return { count: items.length };
     })();
   });
+
+  // Apply a single-meal template to (date, meal) as planned entries.
+  // If target_meal is supplied, overrides the stored meal of the items.
+  // If replace=true, existing entries in (date, target_meal) are deleted first.
+  ipcMain.handle('templates:applyToCell', (_, { id, date, target_meal, replace }) => {
+    const db = getDb();
+    const d = date || today();
+    return db.transaction(() => {
+      const items = db.prepare(
+        'SELECT food_id, grams, meal FROM template_items WHERE template_id = ?'
+      ).all(id);
+      const meal = target_meal || (items[0] && items[0].meal) || 'AfternoonSnack';
+      if (replace) {
+        db.prepare("DELETE FROM log WHERE date = ? AND meal = ? AND status = 'planned'").run(d, meal);
+      }
+      const insert = db.prepare(
+        "INSERT INTO log (date, food_id, grams, meal, status) VALUES (?, ?, ?, ?, 'planned')"
+      );
+      for (const it of items) {
+        insert.run(d, it.food_id, it.grams, meal);
+      }
+      return { count: items.length };
+    })();
+  });
+
+  // Create a single-meal template from the entries currently in (date, meal).
+  ipcMain.handle('templates:createFromCell', (_, { name, date, meal }) => {
+    const db = getDb();
+    const d = date || today();
+    return db.transaction(() => {
+      const entries = db.prepare(
+        'SELECT food_id, grams FROM log WHERE date = ? AND meal = ?'
+      ).all(d, meal);
+      if (entries.length === 0) return { id: null, count: 0 };
+      const { lastInsertRowid } = db.prepare(
+        'INSERT INTO meal_templates (name) VALUES (?)'
+      ).run(name);
+      const insertItem = db.prepare(
+        'INSERT INTO template_items (template_id, food_id, grams, meal) VALUES (?, ?, ?, ?)'
+      );
+      for (const { food_id, grams } of entries) {
+        insertItem.run(lastInsertRowid, food_id, grams, meal);
+      }
+      return { id: lastInsertRowid, count: entries.length };
+    })();
+  });
 }
 
 module.exports = registerTemplatesIpc;

@@ -578,6 +578,20 @@ export default function FoodsPage() {
               </div>
             </div>
 
+            {/* Category */}
+            <div className="flex items-center gap-2">
+              <label className="text-xs text-text-sec shrink-0">{t('foods.category')}</label>
+              <select
+                value={addForm.category}
+                onChange={e => patchAdd({ category: e.target.value as FoodCategory })}
+                className={INPUT_CLASS}
+              >
+                {FOOD_CATEGORIES.map(c => (
+                  <option key={c} value={c}>{t(`food.category.${c}`)}</option>
+                ))}
+              </select>
+            </div>
+
             {/* Extra nutrition (sugar / sat fat / sodium-or-salt) */}
             {trackExtra && (
               <div className="flex items-end gap-2">

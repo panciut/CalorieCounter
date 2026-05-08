@@ -310,6 +310,19 @@ export const api = {
     stats:          (days: number | 'all') => invoke<import('./types').StatsBundle>('analytics:stats', { days }),
   },
 
+  templates: {
+    getAll: () => invoke<import('./types').MealTemplateSummary[]>('templates:getAll'),
+    get:    (id: number) => invoke<import('./types').MealTemplate>('templates:get', { id }),
+    create: (data: { name: string; items: { food_id: number; grams: number; meal: Meal }[] }) =>
+              invoke<{ id: number }>('templates:create', data),
+    createFromDay:  (data: { name: string; date: string }) => invoke<{ id: number | null; count: number }>('templates:createFromDay', data),
+    createFromCell: (data: { name: string; date: string; meal: Meal }) => invoke<{ id: number | null; count: number }>('templates:createFromCell', data),
+    delete: (id: number) => invoke<{ ok: boolean }>('templates:delete', { id }),
+    apply:  (data: { id: number; date: string }) => invoke<{ count: number }>('templates:apply', data),
+    applyToCell: (data: { id: number; date: string; target_meal?: Meal; replace?: boolean }) =>
+                   invoke<{ count: number }>('templates:applyToCell', data),
+  },
+
   goals: {
     calculateTDEE: () => invoke<TDEEResult>('goals:calculateTDEE'),
     suggest: (data: { goal_type: GoalType; tdee: number }) => invoke<GoalSuggestion>('goals:suggest', data),

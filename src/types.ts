@@ -20,11 +20,14 @@ export type Meal =
   | 'Lunch'
   | 'AfternoonSnack'
   | 'Dinner'
-  | 'EveningSnack';
+  | 'EveningSnack'
+  | 'NightSnack';
 
 export const MEAL_ORDER: Meal[] = [
-  'Breakfast', 'MorningSnack', 'Lunch', 'AfternoonSnack', 'Dinner', 'EveningSnack',
+  'Breakfast', 'MorningSnack', 'Lunch', 'AfternoonSnack', 'Dinner', 'EveningSnack', 'NightSnack',
 ];
+
+export const MAIN_MEALS: Meal[] = ['Breakfast', 'Lunch', 'Dinner'];
 
 export type SupplementTime =
   | 'wake_up'
@@ -702,6 +705,32 @@ export interface StatsBundle {
 
 export type StatsRange = 7 | 30 | 90 | 180 | 365 | 'all';
 
+export interface MealTemplateSummary {
+  id: number;
+  name: string;
+  item_count: number;
+  total_calories: number | null;
+}
+
+export interface MealTemplateItem {
+  id: number;
+  food_id: number;
+  grams: number;
+  meal: Meal;
+  name: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  fiber: number;
+}
+
+export interface MealTemplate {
+  id: number;
+  name: string;
+  items: MealTemplateItem[];
+}
+
 export type GoalType = 'lose' | 'maintain' | 'gain' | 'custom';
 
 export interface TDEEResult {
@@ -783,6 +812,7 @@ export type PageName =
   | 'stats'
   | 'week'
   | 'day'
+  | 'plan'
   | 'weight'
   | 'supplements'
   | 'measurements'

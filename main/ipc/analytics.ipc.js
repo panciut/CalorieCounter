@@ -301,7 +301,7 @@ function registerAnalyticsIpc() {
       GROUP BY l.meal
     `).all(startDate, todayStr);
     const totalMealKcal = mealRows.reduce((s, r) => s + (r.kcal || 0), 0) || 1;
-    const mealOrder = ['Breakfast', 'MorningSnack', 'Lunch', 'AfternoonSnack', 'Dinner', 'EveningSnack'];
+    const mealOrder = ['Breakfast', 'MorningSnack', 'Lunch', 'AfternoonSnack', 'Dinner', 'EveningSnack', 'NightSnack'];
     const mealDistribution = mealOrder.map(m => {
       const r = mealRows.find(x => x.meal === m);
       const k = r ? r.kcal : 0;

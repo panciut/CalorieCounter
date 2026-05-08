@@ -16,6 +16,7 @@ import RecipesPage      from './pages/RecipesPage';
 import HistoryPage      from './pages/HistoryPage';
 import StatsPage        from './pages/StatsPage';
 import WeekPage         from './pages/WeekPage';
+import PlanPage         from './pages/PlanPage';
 import WeightPage       from './pages/WeightPage';
 import SupplementsPage  from './pages/SupplementsPage';
 import MeasurementsPage from './pages/MeasurementsPage';
@@ -64,6 +65,7 @@ function AppInner() {
         {page === 'history'      && <HistoryPage />}
         {page === 'stats'        && <StatsPage />}
         {page === 'week'         && <WeekPage weekStart={param?.weekStart} />}
+        {page === 'plan'         && <PlanPage />}
         {page === 'day'          && <DashboardPage initialDate={param?.date} fromWeek={param?.fromWeek} />}
         {page === 'weight'       && <WeightPage />}
         {page === 'supplements'  && <SupplementsPage />}

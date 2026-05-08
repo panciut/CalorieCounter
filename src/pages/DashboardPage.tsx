@@ -13,6 +13,7 @@ import EntryTable from '../components/EntryTable';
 import Modal from '../components/Modal';
 import { today, fmtDateWithWeekday, addDays } from '../lib/dateUtil';
 import { buildDayMarkdown, copyToClipboard } from '../lib/exportText';
+import WeekDayStrip from '../components/dashboard/WeekDayStrip';
 import ExerciseSection from '../components/ExerciseSection';
 import CollapsibleSection from '../components/dashboard/CollapsibleSection';
 import {
@@ -52,6 +53,13 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
 
   const [dateStr, setDateStr]       = useState(initialDate || today());
   const [planMode, setPlanMode]     = useState((initialDate || today()) > today());
+
+  // Sync internal date when navigation re-mounts us with a new initialDate
+  // (e.g. tapping a different day in the WeekDayStrip while already on 'day').
+  useEffect(() => {
+    if (initialDate && initialDate !== dateStr) setDateStr(initialDate);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialDate]);
 
   // Auto-default to plan mode when navigating to a future day
   useEffect(() => {
@@ -365,6 +373,9 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
+      {/* Week-at-a-glance day strip */}
+      <WeekDayStrip />
+
       {/* Header */}
       {fromWeek && (
         <button className="text-accent text-sm hover:opacity-80 cursor-pointer self-start" onClick={() => navigate('week', { weekStart: fromWeek })}>
