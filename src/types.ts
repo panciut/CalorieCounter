@@ -743,6 +743,16 @@ export interface SuggestionCombo {
   b: Food;
 }
 
+export interface FoodAuditRow {
+  id: number;
+  name: string;
+  category: FoodCategory;
+  group_id: number | null;
+  calories: number;
+  is_variant: boolean;
+  missing: string[];
+}
+
 export interface SuggestionsBundle {
   slot: Meal;
   forgottenFavorites: SuggestionFood[];

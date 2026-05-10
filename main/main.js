@@ -73,6 +73,7 @@ const registerNotificationsIpc = require('./ipc/notifications.ipc');
 const registerWorkoutPlansIpc    = require('./ipc/workout_plans.ipc');
 const registerWorkoutScheduleIpc = require('./ipc/workout_schedule.ipc');
 const registerSuggestionsIpc    = require('./ipc/suggestions.ipc');
+const registerAuditIpc          = require('./ipc/audit.ipc');
 
 let mainWindow;
 
@@ -157,6 +158,7 @@ app.whenReady().then(async () => {
   registerWorkoutPlansIpc();
   registerWorkoutScheduleIpc();
   registerSuggestionsIpc();
+  registerAuditIpc();
 
   createWindow();
 

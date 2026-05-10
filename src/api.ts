@@ -53,6 +53,8 @@ export const api = {
                       invoke<{ ok: boolean; canonical_id?: number; reason?: string }>('foods:groupAs', data),
     ungroup:        (variant_id: number) => invoke<{ ok: boolean }>('foods:ungroup', { variant_id }),
     recomputeGroupAverages: (canonical_id: number) => invoke<{ ok: boolean }>('foods:recomputeGroupAverages', { canonical_id }),
+    promoteToGeneric: (data: { from_id: number; name: string }) =>
+                        invoke<{ ok: boolean; id?: number; reason?: string }>('foods:promoteToGeneric', data),
     findSimilar:    (data: { name: string; calories?: number; protein?: number; carbs?: number; fat?: number; exclude_id?: number; nameMin?: number; macroPctMax?: number; limit?: number }) =>
                       invoke<SimilarFood[]>('foods:findSimilar', data),
   },
@@ -317,6 +319,10 @@ export const api = {
 
   suggestions: {
     getBundle: () => invoke<import('./types').SuggestionsBundle>('suggestions:getBundle'),
+  },
+
+  audit: {
+    foodsMissing: () => invoke<import('./types').FoodAuditRow[]>('audit:foodsMissing'),
   },
 
   templates: {

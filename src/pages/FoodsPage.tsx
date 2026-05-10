@@ -14,6 +14,8 @@ import PageHeader from '../components/ui/PageHeader';
 import OffSuggestions from '../components/OffSuggestions';
 import FoodMatchModal, { type Candidate } from '../components/FoodMatchModal';
 import GroupWithDialog from '../components/foods/GroupWithDialog';
+import PromoteToGenericDialog from '../components/foods/PromoteToGenericDialog';
+import GroupsTab from '../components/foods/GroupsTab';
 import { checkMacroConsistency } from '../lib/macroCheck';
 import type { Food, BarcodeResult, FoodPackage, FoodCategory } from '../types';
 import { FOOD_CATEGORIES } from '../types';
@@ -206,7 +208,7 @@ function FormFields({ form, patch, trackExtra = false, unit = 'sodium' }: FormFi
 
 // ── FoodsPage ─────────────────────────────────────────────────────────────────
 
-type FoodsTab = 'foods' | 'packs';
+type FoodsTab = 'foods' | 'packs' | 'groups';
 
 export default function FoodsPage() {
   const { t } = useT();
@@ -226,6 +228,7 @@ export default function FoodsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<FoodCategory | 'all'>('all');
   const [groupWithFood, setGroupWithFood] = useState<Food | null>(null);
+  const [promoteFood, setPromoteFood] = useState<Food | null>(null);
   const [confirmUngroupId, setConfirmUngroupId] = useState<number | null>(null);
   const [barcodeInput, setBarcodeInput] = useState('');
   const [barcodeStatus, setBarcodeStatus] = useState<'found'|'notFound'|null>(null);
@@ -712,6 +715,7 @@ export default function FoodsPage() {
         items={[
           { id: 'foods', label: t('foods.tabFoods') },
           { id: 'packs', label: t('foods.tabPacks') },
+          { id: 'groups', label: t('foods.tabGroups') },
         ]}
         active={tab}
         onChange={setTab}
@@ -928,12 +932,22 @@ export default function FoodsPage() {
                               title={t('foods.ungroup')}
                             >{t('foods.ungroup')}</button>
                           ) : (
-                            <button
-                              type="button"
-                              onClick={() => setGroupWithFood(food)}
-                              className="text-[10px] uppercase tracking-wider text-text-sec hover:text-accent border border-border hover:border-accent rounded px-1.5 py-0.5 cursor-pointer transition-colors"
-                              title={t('foods.groupWith')}
-                            >🔗</button>
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => setGroupWithFood(food)}
+                                className="text-[10px] uppercase tracking-wider text-text-sec hover:text-accent border border-border hover:border-accent rounded px-1.5 py-0.5 cursor-pointer transition-colors"
+                                title={t('foods.groupWith')}
+                              >🔗</button>
+                              {food.variant_count != null && food.variant_count > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => setPromoteFood(food)}
+                                  className="text-[10px] uppercase tracking-wider text-text-sec hover:text-accent border border-border hover:border-accent rounded px-1.5 py-0.5 cursor-pointer transition-colors"
+                                  title={t('foods.promoteTitle')}
+                                >↑</button>
+                              )}
+                            </>
                           )}
                           <button type="button" onClick={()=>startEdit(food)} className="text-text-sec hover:text-text px-1 cursor-pointer"><span style={{ display: 'inline-block', transform: 'scaleX(-1) rotate(15deg)' }}>✎</span></button>
                           <button type="button" onClick={() => setDeleteId(food.id)} className="text-text-sec hover:text-red px-1 cursor-pointer transition-colors">✕</button>
@@ -1053,6 +1067,11 @@ export default function FoodsPage() {
         </div>
       )}
 
+      {/* ── Groups tab ─────────────────────────────────────────────────────── */}
+      {tab === 'groups' && (
+        <GroupsTab foods={foods} onChanged={loadFoods} />
+      )}
+
       <Modal isOpen={scannerOpen} onClose={()=>setScannerOpen(false)} title={t('barcode.scanTitle')}>
         <BarcodeScanner onResult={handleScanResult} />
       </Modal>
@@ -1073,6 +1092,14 @@ export default function FoodsPage() {
           food={groupWithFood}
           onClose={() => setGroupWithFood(null)}
           onGrouped={() => { setGroupWithFood(null); loadFoods(); showToast(t('common.saved')); }}
+        />
+      )}
+
+      {promoteFood && (
+        <PromoteToGenericDialog
+          food={promoteFood}
+          onClose={() => setPromoteFood(null)}
+          onPromoted={() => { setPromoteFood(null); loadFoods(); }}
         />
       )}
 

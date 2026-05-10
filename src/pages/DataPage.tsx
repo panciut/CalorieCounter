@@ -6,6 +6,7 @@ import { BulkRefillModal, BulkMatchModal } from '../components/BulkOffOpsModal';
 import OffLocalCard from '../components/OffLocalCard';
 import ExportDialog from '../components/data/ExportDialog';
 import ImportDialog from '../components/data/ImportDialog';
+import FoodAuditSection from '../components/data/FoodAuditSection';
 import { copyToClipboard } from '../lib/exportText';
 import { useT } from '../i18n/useT';
 import PageHeader from '../components/ui/PageHeader';
@@ -183,6 +184,9 @@ export default function DataPage() {
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
       <PageHeader eyebrow={t('eyebrow.data')} title={t('page.data')} />
+
+      {/* ── Audit (foods missing values) ───────────────────────────────────── */}
+      <FoodAuditSection />
 
       {/* ── Export ─────────────────────────────────────────────────────────── */}
       <section className="space-y-3">

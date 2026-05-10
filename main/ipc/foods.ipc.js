@@ -158,6 +158,51 @@ function registerFoodsIpc() {
     return { ok };
   });
 
+  // Promote a brand-canonical (e.g. "Funghi Trifolati Coop") into a clean
+  // generic canonical (e.g. "Funghi Trifolati") that doesn't impersonate any
+  // single brand. Creates a new food row with averaged macros + same category +
+  // no barcode, then re-parents the original canonical AND all its variants
+  // under it.
+  ipcMain.handle('foods:promoteToGeneric', (_, { from_id, name }) => {
+    const db = getDb();
+    const src = db.prepare('SELECT * FROM foods WHERE id = ?').get(from_id);
+    if (!src) return { ok: false, reason: 'not_found' };
+    if (src.group_id != null) return { ok: false, reason: 'not_a_canonical' };
+    const newName = String(name || '').trim();
+    if (!newName) return { ok: false, reason: 'empty_name' };
+
+    return db.transaction(() => {
+      // Collect every food that will become a sibling: the source itself + its
+      // current variants. The new generic averages over all of them.
+      const siblings = db.prepare(
+        'SELECT id, calories, protein, carbs, fat, fiber FROM foods WHERE id = ? OR group_id = ?'
+      ).all(from_id, from_id);
+      if (siblings.length === 0) return { ok: false, reason: 'no_siblings' };
+      const avg = (k) => Math.round((siblings.reduce((s, v) => s + (v[k] || 0), 0) / siblings.length) * 100) / 100;
+
+      // Insert generic — no barcode, default sizing flags, copied category.
+      const ins = db.prepare(`
+        INSERT INTO foods (name, calories, protein, carbs, fat, fiber, piece_grams, is_liquid, is_bulk, barcode, opened_days, discard_threshold_pct, price_per_100g, sugar, saturated_fat, sodium_mg, category, group_id)
+        VALUES (?, ?, ?, ?, ?, ?, NULL, ?, 0, NULL, NULL, 5, NULL, NULL, NULL, NULL, ?, NULL)
+      `);
+      let result;
+      try {
+        result = ins.run(newName, avg('calories'), avg('protein'), avg('carbs'), avg('fat'), avg('fiber'), src.is_liquid ?? 0, src.category ?? 'other');
+      } catch (e) {
+        if (/UNIQUE/i.test(e.message)) return { ok: false, reason: 'name_taken' };
+        throw e;
+      }
+      const newId = result.lastInsertRowid;
+
+      // Re-parent: all rows that were `from_id` itself OR pointed to it are
+      // now under the new generic.
+      db.prepare('UPDATE foods SET group_id = ? WHERE id = ?').run(newId, from_id);
+      db.prepare('UPDATE foods SET group_id = ? WHERE group_id = ?').run(newId, from_id);
+
+      return { ok: true, id: newId };
+    })();
+  });
+
   // Find similar canonicals to a candidate {name, calories, protein, carbs, fat}.
   // Used by the on-add prompt and the Suggested Groupings section.
   ipcMain.handle('foods:findSimilar', (_, { name, calories, protein, carbs, fat, exclude_id, nameMin = 0.4, macroPctMax = 0.20, limit = 8 }) => {
