@@ -68,9 +68,6 @@ function renderInsight(raw, lang = 'it') {
     const { contrast, weekendControlled, nutrition, reliabilityBasis, n } = raw;
     const { highMean, lowMean, cutoffLabel, predictor, outcome } = contrast;
 
-    // Determine basis text
-    const basisText = nutrition ? `${reliabilityBasis} giorni affidabili` : n;
-
     // Determine suffix for weekend caveat
     const suffix = weekendControlled.survived
       ? ''
@@ -80,10 +77,11 @@ function renderInsight(raw, lang = 'it') {
 
     // Build association text
     if (lang === 'it') {
-      const dayText = nutrition ? basisText : `${basisText} giorni`;
-      text = `Nei giorni con ${cutoffLabel} di ${labels[predictor]}, ${labels[outcome]} medio ${fmt(highMean, 'it')} contro ${fmt(lowMean, 'it')} negli altri — su ${dayText}${suffix}.`;
+      const basisText = nutrition ? `${reliabilityBasis} giorni affidabili` : `${n} giorni`;
+      text = `Nei giorni con ${cutoffLabel} di ${labels[predictor]}, ${labels[outcome]} medio ${fmt(highMean, 'it')} contro ${fmt(lowMean, 'it')} negli altri — su ${basisText}${suffix}.`;
     } else {
-      text = `On days with ${cutoffLabel} of ${labels[predictor]}, average ${labels[outcome]} ${fmt(highMean, 'en')} vs ${fmt(lowMean, 'en')} on others — across ${basisText} days${suffix}.`;
+      const basisText = nutrition ? `${reliabilityBasis} reliable days` : `${n} days`;
+      text = `On days with ${cutoffLabel} of ${labels[predictor]}, average ${labels[outcome]} ${fmt(highMean, 'en')} vs ${fmt(lowMean, 'en')} on others — across ${basisText}${suffix}.`;
     }
 
     // Check for action hint
@@ -99,11 +97,12 @@ function renderInsight(raw, lang = 'it') {
       : lang === 'it' ? 'in peggioramento' : 'declining';
 
     const slopeText = fmt(Math.abs(slopePerDay * 7), lang); // per week
+    const signPrefix = direction === 'up' ? '+' : '-';
 
     if (lang === 'it') {
-      text = `Il tuo ${metricLabel} è ${directionText} nelle ultime 3 settimane (+${slopeText} per settimana).`;
+      text = `Il tuo ${metricLabel} è ${directionText} nelle ultime 3 settimane (${signPrefix}${slopeText} per settimana).`;
     } else {
-      text = `Your ${metricLabel} is ${directionText} over the last 3 weeks (+${slopeText} per week).`;
+      text = `Your ${metricLabel} is ${directionText} over the last 3 weeks (${signPrefix}${slopeText} per week).`;
     }
   } else if (raw.kind === 'anomaly') {
     const { metric, value, baselineMedian, direction } = raw;

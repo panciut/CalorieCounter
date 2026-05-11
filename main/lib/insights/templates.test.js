@@ -45,4 +45,16 @@ describe('renderInsight', () => {
     expect(actionHint).toBeTruthy();
     expect(ACTION_HINTS['lastMealHour~sleepQuality']).toBeTruthy();
   });
+  it('renders a nutrition association in English without double unit', () => {
+    const raw = { kind: 'association', x: 'kcalBalance', y: 'weightTrend', lag: 0, corr: 'pearson', stat: 0.6, n: 24,
+      nutrition: true, reliabilityBasis: 24, weekendControlled: { survived: true },
+      contrast: { highMean: 80.1, lowMean: 79.6, highN: 12, lowN: 12, cutoff: 0, cutoffLabel: 'above median', predictor: 'kcalBalance', outcome: 'weightTrend' } };
+    const { text } = renderInsight(raw, 'en');
+    expect(text).not.toMatch(/affidabili/);  // Italian word must not appear
+    expect(text).toMatch(/24/);
+  });
+  it('renders a declining trend without + prefix', () => {
+    const { text } = renderInsight({ kind: 'trend', metric: 'stress', direction: 'down', slopePerDay: 0.05, n: 21, confidence: 'high' }, 'it');
+    expect(text).not.toMatch(/\+/);
+  });
 });
