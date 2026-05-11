@@ -60,6 +60,18 @@ describe('buildInsights', () => {
     const { insights } = buildInsights(db, { windowDays: 90, settings: { ...SETTINGS, enabled: false }, today: '2025-01-02' });
     expect(insights).toEqual([]);
   });
+
+  it('Tier-2 path runs without error with sufficient data', () => {
+    const db = makeDb();
+    for (let i = 0; i < 15; i++) {
+      const date = `2025-01-${String(i + 1).padStart(2, '0')}`;
+      db.prepare("INSERT INTO mood_log (date,mood,energy,stress) VALUES (?,?,?,?)").run(date, 3, 3, 3);
+      db.prepare("INSERT INTO sleep_log (date,bedtime,wake_time,duration_min,quality) VALUES (?,?,?,?,?)").run(date, '23:00', '07:00', 450, 3);
+    }
+    const { insights, dataQuality } = buildInsights(db, { windowDays: 90, settings: SETTINGS, today: '2025-01-16' });
+    expect(Array.isArray(insights)).toBe(true);
+    expect(dataQuality.daysWithAnyData).toBeGreaterThanOrEqual(10);
+  });
 });
 
 describe('pickOfDay', () => {

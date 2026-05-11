@@ -48,7 +48,8 @@ function buildInsights(db, { windowDays = 90, settings, today }) {
   // Tier 1: trends
   for (const t of findTrends(facts, settings)) {
     const severity = t.confidence === 'high' ? 'notice' : 'info';
-    const { text } = renderInsight(t, lang);
+    const rendered = renderInsight(t, lang) || {};
+    const text = rendered.text || '';
     out.push({ id: `trend:${t.metric}`, type: 'trend', tier: 1, severity, subject: t.metric, relatedModules: moduleOf(t.metric),
       period: { from, to: today }, evidence: { n: t.n, slope: t.slopePerDay }, confidence: t.confidence || 'low', text });
   }
@@ -56,14 +57,16 @@ function buildInsights(db, { windowDays = 90, settings, today }) {
   if (dq.daysWithAnyData >= 10) {
     for (const a of findAnomalies(facts, settings, today)) {
       const severity = Math.abs(a.z) >= 3.5 ? 'strong' : 'notice';
-      const { text } = renderInsight(a, lang);
+      const rendered = renderInsight(a, lang) || {};
+      const text = rendered.text || '';
       out.push({ id: `anomaly:${a.date}:${a.metric}`, type: 'anomaly', tier: 2, severity, subject: a.metric, relatedModules: moduleOf(a.metric),
         period: { from: a.date, to: a.date }, evidence: { zScore: a.z }, confidence: 'medium', text, recent: true });
     }
     for (const fct of findFactorInsights(facts)) {
-      const { text } = renderInsight(fct, lang);
+      const rendered = renderInsight(fct, lang) || {};
+      const text = rendered.text || '';
       out.push({ id: `factor:${fct.tag}:${fct.metric}`, type: 'factor', tier: 2, severity: 'notice', subject: `${fct.tag}~${fct.metric}`,
-        relatedModules: fct.tag === 'perceivedEffort' ? ['workouts', moduleOf(fct.metric)[0]] : ['sleep'], period: { from, to: today },
+        relatedModules: fct.tag === 'perceivedEffort' ? ['workouts', moduleOf(fct.metric)[0]] : [...new Set(['sleep', ...moduleOf(fct.metric)])], period: { from, to: today },
         evidence: { n: (fct.withN || fct.highN || 0) + (fct.withoutN || fct.lowN || 0) }, confidence: 'medium', text });
     }
   }
@@ -71,7 +74,9 @@ function buildInsights(db, { windowDays = 90, settings, today }) {
   for (const r of findAssociations(facts, settings)) {
     const severity = severityForAssoc(r);
     const confidence = confidenceForAssoc(r);
-    const { text, actionHint } = renderInsight(r, lang);
+    const rendered = renderInsight(r, lang) || {};
+    const text = rendered.text || '';
+    const actionHint = rendered.actionHint;
     out.push({ id: `assoc:${r.x}~${r.y}`, type: 'association', tier: 3, severity, subject: `${r.x}~${r.y}`,
       relatedModules: [...new Set([...moduleOf(r.x), ...moduleOf(r.y)])], period: { from, to: today },
       evidence: { n: r.n, [r.corr === 'spearman' ? 'rho' : 'r']: r.stat, pValue: r.pValue, qValue: r.qValue, lag: r.lag,
