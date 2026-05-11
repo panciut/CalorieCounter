@@ -2,9 +2,14 @@ import { useState, useEffect, useRef } from 'react';
 import { api } from '../api';
 import { useT } from '../i18n/useT';
 import { useAchievementToast } from '../hooks/useAchievementToast';
-import type { WorkoutSession, WorkoutExerciseSet, ExerciseType } from '../types';
+import type { WorkoutSession, WorkoutExerciseSet, ExerciseType, WorkoutStats } from '../types';
 import { cardOuter, eyebrow, pillPrimary, pillGhost, tinyInput } from '../lib/fbUI';
 import ExerciseSearch from './ExerciseSearch';
+import { addDays, formatShortDate } from '../lib/dateUtil';
+import StreakBadge from './StreakBadge';
+import WeeklySummaryCard from './WeeklySummaryCard';
+import BarChartCard from './BarChartCard';
+import ModuleInsightsCard from './ModuleInsightsCard';
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -356,6 +361,7 @@ export default function WorkoutSessions() {
   const [activeSession, setActiveSession] = useState<WorkoutSession | null>(null);
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
+  const [workoutStats, setWorkoutStats] = useState<WorkoutStats | null>(null);
 
   async function load() {
     const [day, active] = await Promise.all([
@@ -365,6 +371,10 @@ export default function WorkoutSessions() {
     setSessions(day as WorkoutSession[]);
     setActiveSession(active as WorkoutSession | null);
     setLoading(false);
+    // Load stats separately (non-blocking)
+    api.workouts.getStats(addDays(today(), -29), today())
+      .then(stats => setWorkoutStats(stats))
+      .catch(() => {});
   }
 
   useEffect(() => { load(); }, []);
@@ -420,6 +430,100 @@ export default function WorkoutSessions() {
       {completedSessions.map(s => (
         <SessionCard key={s.id} session={s} onDelete={() => deleteSession(s.id)} />
       ))}
+
+      {/* ── Streak + Weekly Summary ─────────────────────────────────────── */}
+      {workoutStats && (
+        <>
+          <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+            <StreakBadge
+              current={workoutStats.current_streak}
+              best={workoutStats.best_streak}
+              emoji="💪"
+              label={t('exercise.weekStreak')}
+            />
+          </div>
+          <WeeklySummaryCard
+            title={t('exercise.weekTitle')}
+            metrics={[
+              {
+                label: t('exercise.sessions'),
+                thisWeek: workoutStats.week_sessions,
+                lastWeek: workoutStats.last_week_sessions,
+                higherIsBetter: true,
+              },
+              {
+                label: t('exercise.minutes'),
+                thisWeek: workoutStats.week_min,
+                lastWeek: workoutStats.last_week_min,
+                format: (v: number) => {
+                  const h = Math.floor(v / 60);
+                  const m = v % 60;
+                  if (h === 0) return `${m}m`;
+                  if (m === 0) return `${h}h`;
+                  return `${h}h ${m}m`;
+                },
+                higherIsBetter: true,
+              },
+            ]}
+          />
+        </>
+      )}
+
+      {/* ── 30-day chart ─────────────────────────────────────────────────── */}
+      {workoutStats && workoutStats.days.some(d => (d.duration_min ?? 0) > 0) && (
+        <div style={{ ...cardOuter }}>
+          <div style={{ ...eyebrow }}>{t('exercise.chart30Title')}</div>
+          <BarChartCard
+            data={workoutStats.days.map(d => ({
+              label: formatShortDate(d.date),
+              value: d.duration_min ?? 0,
+            }))}
+            height={180}
+            unit=" min"
+            color="var(--fb-accent)"
+          />
+        </div>
+      )}
+
+      {/* ── Per-exercise table ────────────────────────────────────────────── */}
+      {workoutStats && workoutStats.by_exercise.length > 0 && (
+        <div style={{ ...cardOuter }}>
+          <div style={{ ...eyebrow }}>{t('exercise.byExerciseTitle')}</div>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+              <thead>
+                <tr style={{ color: 'var(--fb-text-3)' }}>
+                  <th style={{ textAlign: 'left', padding: '4px 8px', fontWeight: 600 }}>{t('exercise.exerciseName')}</th>
+                  <th style={{ textAlign: 'right', padding: '4px 8px', fontWeight: 600 }}>{t('exercise.sessions')}</th>
+                  <th style={{ textAlign: 'right', padding: '4px 8px', fontWeight: 600 }}>{t('exercise.volume')}</th>
+                  <th style={{ textAlign: 'right', padding: '4px 8px', fontWeight: 600 }}>{t('exercise.bestWeight')}</th>
+                  <th style={{ textAlign: 'right', padding: '4px 8px', fontWeight: 600 }}>{t('exercise.est1rm')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {workoutStats.by_exercise.map(ex => (
+                  <tr key={ex.exercise_id} style={{ borderTop: '1px solid var(--fb-border)' }}>
+                    <td style={{ padding: '6px 8px', color: 'var(--fb-text)', fontWeight: 500 }}>{ex.name}</td>
+                    <td style={{ padding: '6px 8px', textAlign: 'right', color: 'var(--fb-text-2)' }}>{ex.sessions}</td>
+                    <td style={{ padding: '6px 8px', textAlign: 'right', color: 'var(--fb-text-2)' }}>
+                      {ex.total_volume_kg > 0 ? `${Math.round(ex.total_volume_kg)} kg` : '—'}
+                    </td>
+                    <td style={{ padding: '6px 8px', textAlign: 'right', color: 'var(--fb-text-2)' }}>
+                      {ex.best_weight_kg != null ? `${ex.best_weight_kg} kg` : '—'}
+                    </td>
+                    <td style={{ padding: '6px 8px', textAlign: 'right', color: 'var(--fb-accent)', fontWeight: 600 }}>
+                      {ex.best_est_1rm_kg != null ? `${Math.round(ex.best_est_1rm_kg)} kg` : '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ── Correlazioni ─────────────────────────────────────────────────── */}
+      <ModuleInsightsCard modules={['workouts']} />
     </div>
   );
 }
