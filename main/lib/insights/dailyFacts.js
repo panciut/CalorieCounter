@@ -53,7 +53,8 @@ function buildDailyFacts(db, { from, to }) {
     const dow = new Date(date + 'T00:00:00Z').getUTCDay();
     const s = sleep[date], mo = mood[date], en = energy[date];
     const ws = wsess[date] || [], ex = exrows[date] || [];
-    const workoutDone = ws.length > 0 || ex.length > 0;
+    const hasWorkout = ws.length > 0 || ex.length > 0;
+    const workoutDone = hasWorkout ? true : null;
     const wEntry = weightByDate[date]; if (wEntry) lastEma = wEntry.ema;
     const habitsTracked = activeHabits;
     const habitsDone = (habitLogs[date] || []).filter(h => h.value).length;
@@ -83,7 +84,7 @@ function buildDailyFacts(db, { from, to }) {
       hasBreakfast: items.some(i => i.meal === 'Breakfast'),
       firstMealHour: null, lastMealHour: null,
       gramRoundness: hasFood ? grams.filter(g => g % 50 === 0).length / grams.length : null,
-      workoutDone, workoutMin: workoutDone ? (sum(ws, 'duration_min') || sum(ex, 'duration_min') || null) : null,
+      workoutDone, workoutMin: hasWorkout ? (sum(ws, 'duration_min') || sum(ex, 'duration_min') || null) : null,
       perceivedEffort: ws.length ? Math.max(...ws.map(w => w.perceived_effort || 0)) || null : null,
       tasksPlanned: tk.length, tasksDone: tk.filter(t => t.done).length,
       taskCompletionPct: tk.length ? tk.filter(t => t.done).length / tk.length : null,
