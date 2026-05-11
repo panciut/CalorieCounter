@@ -1,3 +1,7 @@
+// SP1 intentional deferrals:
+// - Raw scatter points not returned by backend → contrast shown as 2-bar chart (highMean vs lowMean)
+// - Milestone insights not surfaced (no milestone generation in SP1)
+// - dataVersion memo cache skipped (computation is cheap enough for now)
 import { useEffect, useState } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
