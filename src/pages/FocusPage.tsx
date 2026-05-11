@@ -7,7 +7,11 @@ import { useSettings } from '../hooks/useSettings';
 import { PageHeader, SegmentedControl, cardOuter, eyebrow } from '../lib/fbUI';
 import { fbBtnPrimary, fbBtnGhost } from '../lib/fbStyles';
 import BarChartCard from '../components/BarChartCard';
-import type { FocusDayStats, FocusSession, FocusWeekPoint } from '../types';
+import StreakBadge from '../components/StreakBadge';
+import WeeklySummaryCard from '../components/WeeklySummaryCard';
+import ModuleInsightsCard from '../components/ModuleInsightsCard';
+import { formatShortDate } from '../lib/dateUtil';
+import type { FocusDayStats, FocusSession, FocusStats } from '../types';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -730,14 +734,15 @@ const inputStyle: React.CSSProperties = {
 // ── History Tab ───────────────────────────────────────────────────────────────
 
 function HistoryTab() {
+  const { t } = useT();
   const [selectedDate, setSelectedDate] = useState(todayStr());
-  const [weekData,     setWeekData]     = useState<FocusWeekPoint[]>([]);
+  const [focusStats,   setFocusStats]   = useState<FocusStats | null>(null);
   const [dayStats,     setDayStats]     = useState<FocusDayStats | null>(null);
 
   const loadData = useCallback((date: string) => {
-    const from = nDaysAgo(13);
+    const from = nDaysAgo(29);
     const to   = todayStr();
-    api.focus.getWeekStats(from, to).then(data => setWeekData(data)).catch(() => {});
+    api.focus.getStats(from, to).then(data => setFocusStats(data)).catch(() => {});
     api.focus.getDayStats(date).then(stats => setDayStats(stats)).catch(() => {});
   }, []);
 
@@ -745,15 +750,12 @@ function HistoryTab() {
     loadData(selectedDate);
   }, [selectedDate, loadData]);
 
-  // Build 14-day bar chart data
-  const chartData = Array.from({ length: 14 }, (_, i) => {
-    const d = nDaysAgo(13 - i);
-    const found = weekData.find(w => w.date === d);
-    return {
-      label: shortDate(d),
-      value: found?.total_min ?? 0,
-    };
-  });
+  const chartData = focusStats
+    ? focusStats.days.map(d => ({
+        label: formatShortDate(d.date),
+        value: d.total_min,
+      }))
+    : [];
 
   async function handleDelete(id: number) {
     await api.focus.deleteSession(id);
@@ -762,9 +764,53 @@ function HistoryTab() {
 
   return (
     <div style={{ padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 720 }}>
-      {/* Chart */}
+
+      {/* ── Streak + Weekly Summary ─────────────────────────────────────── */}
+      {focusStats && (
+        <>
+          <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+            <StreakBadge
+              current={focusStats.current_streak}
+              best={focusStats.best_streak}
+              emoji="🎯"
+            />
+          </div>
+          <WeeklySummaryCard
+            title={t('focus.weekTitle')}
+            metrics={[
+              {
+                label: t('focus.minutes'),
+                thisWeek: focusStats.week_min,
+                lastWeek: focusStats.last_week_min,
+                format: (v: number) => {
+                  const h = Math.floor(v / 60);
+                  const m = v % 60;
+                  if (h === 0) return `${m}m`;
+                  if (m === 0) return `${h}h`;
+                  return `${h}h ${m}m`;
+                },
+                higherIsBetter: true,
+              },
+              {
+                label: t('focus.avgPerActiveDay'),
+                thisWeek: focusStats.avg_min_per_active_day,
+                lastWeek: 0,
+                format: (v: number) => {
+                  const h = Math.floor(v / 60);
+                  const m = Math.round(v % 60);
+                  if (h === 0) return `${m}m`;
+                  if (m === 0) return `${h}h`;
+                  return `${h}h ${m}m`;
+                },
+              },
+            ]}
+          />
+        </>
+      )}
+
+      {/* ── 30-day chart ───────────────────────────────────────────────── */}
       <div style={cardOuter}>
-        <div style={eyebrow}>Last 14 days · minutes</div>
+        <div style={eyebrow}>{t('focus.chart30Title')}</div>
         <BarChartCard
           data={chartData}
           unit=" min"
@@ -773,7 +819,23 @@ function HistoryTab() {
         />
       </div>
 
-      {/* Date picker + sessions list */}
+      {/* ── Per-project ────────────────────────────────────────────────── */}
+      {focusStats && focusStats.by_project.length > 0 && (
+        <div style={cardOuter}>
+          <div style={eyebrow}>{t('focus.byProjectTitle')}</div>
+          <BarChartCard
+            data={focusStats.by_project.map(p => ({
+              label: p.project === '__none__' ? t('focus.noProject') : p.project,
+              value: p.total_min,
+            }))}
+            unit=" min"
+            color="var(--fb-accent)"
+            height={180}
+          />
+        </div>
+      )}
+
+      {/* ── Date picker + sessions list ───────────────── */}
       <div style={cardOuter}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={eyebrow}>Sessions for</div>
@@ -808,6 +870,10 @@ function HistoryTab() {
           </div>
         )}
       </div>
+
+      {/* ── Correlazioni ───────────────────────────────────────────────── */}
+      <ModuleInsightsCard modules={['focus']} />
+
     </div>
   );
 }
