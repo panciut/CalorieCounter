@@ -19,6 +19,7 @@ import type {
   WorkoutSession, WorkoutExerciseSet, WorkoutWeekPoint,
   Achievement, UserLevel, PointEvent,
   SectionStreak,
+  InsightsResult, DayReliabilityLevel,
 } from './types';
 
 // Re-export for consumers that need it
@@ -382,5 +383,11 @@ export const api = {
 
   sectionStreaks: {
     getAll: () => invoke<SectionStreak[]>('section_streaks:getAll'),
+  },
+
+  insights: {
+    get:                (windowDays?: number) => invoke<InsightsResult>('insights:get', { windowDays }),
+    setDayReliability:  (date: string, level: DayReliabilityLevel) => invoke<{ ok: boolean }>('insights:setDayReliability', { date, level }),
+    clearDayReliability:(date: string) => invoke<{ ok: boolean }>('insights:clearDayReliability', { date }),
   },
 } as const;

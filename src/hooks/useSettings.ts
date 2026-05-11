@@ -20,6 +20,13 @@ const DEFAULT_SETTINGS: Settings = {
   notif_pantry_expiry: 1, notif_low_pantry: 1,
   notif_missing_log: 1, notif_missing_energy: 1,
   notif_weight: 1, notif_weight_warn_days: 3, notif_weight_urgent_days: 7,
+  insights_enabled: 1,
+  insights_use_nutrition: 1,
+  insights_include_approx_days: 0,
+  insights_min_pair_n: 21,
+  insights_fdr_q: 0.10,
+  insights_sleep_target_min: 480,
+  insights_window_days: 90,
 };
 
 // ── Context ───────────────────────────────────────────────────────────────────

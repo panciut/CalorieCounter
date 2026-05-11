@@ -289,6 +289,13 @@ export interface Settings {
   notif_weight_warn_days: number;   // default 3
   notif_weight_urgent_days: number; // default 7
   onboarding_complete?: number;     // 0 or 1
+  insights_enabled?: number;
+  insights_use_nutrition?: number;
+  insights_include_approx_days?: number;
+  insights_min_pair_n?: number;
+  insights_fdr_q?: number;
+  insights_sleep_target_min?: number;
+  insights_window_days?: number;
 }
 
 export interface WeightEntry {
@@ -579,7 +586,8 @@ export type PageName =
   | 'habits'
   | 'focus'
   | 'journal'
-  | 'achievements';
+  | 'achievements'
+  | 'insights';
 
 export type NotificationType =
   | 'pantry_expiry'
@@ -773,3 +781,41 @@ export interface SectionStreak {
   last_completed_date: string | null;
   completed_today: boolean;
 }
+
+// ── Insights ──────────────────────────────────────────────────────────────────
+
+export type DayReliabilityLevel = 'precise' | 'approx' | 'none';
+
+export interface InsightContrast {
+  highMean: number | null; lowMean: number | null; highN: number; lowN: number;
+  cutoff: number; cutoffLabel: string; predictor: string; outcome: string;
+}
+export interface InsightEvidence {
+  n?: number; rho?: number; r?: number; pValue?: number; qValue?: number; lag?: number;
+  slope?: number; zScore?: number; reliabilityBasis?: number;
+  weekendControlled?: { rho?: number; r?: number; survived: boolean };
+  contrast?: InsightContrast;
+}
+export interface Insight {
+  id: string;
+  type: 'association' | 'trend' | 'anomaly' | 'factor' | 'milestone';
+  tier: 1 | 2 | 3;
+  severity: 'info' | 'notice' | 'strong';
+  score: number;
+  subject: string;
+  relatedModules: string[];
+  period: { from: string; to: string };
+  evidence: InsightEvidence;
+  confidence: 'low' | 'medium' | 'high';
+  text: string;
+  actionHint?: string;
+  recent?: boolean;
+}
+export interface DataQuality {
+  windowDays: number;
+  daysWithAnyData: number;
+  perSignalCoverage: Record<string, number>;
+  reliableFoodDays: number;
+  tierUnlocked: 0 | 1 | 2 | 3;
+}
+export interface InsightsResult { insights: Insight[]; dataQuality: DataQuality; }
