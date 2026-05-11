@@ -89,6 +89,17 @@ describe('computeHabitStats', () => {
     expect(stats.on_track).toBe(false);
   });
 
+  it('today not checked, yesterday checked → current_streak=1', () => {
+    const db = makeDb();
+    db.prepare('INSERT INTO habits (name, target_per_week) VALUES (?, ?)').run('H_fallback', 7);
+    const habitId = db.prepare('SELECT id FROM habits').get().id;
+    const today = '2025-03-15';
+    // Only yesterday is checked, not today
+    db.prepare('INSERT INTO habit_logs (habit_id, date) VALUES (?, ?)').run(habitId, addDays(today, -1));
+    const stats = computeHabitStats(db, { habitId, today });
+    expect(stats.current_streak).toBe(1);
+  });
+
   it('checks_prev_week counts correctly', () => {
     const db = makeDb();
     db.prepare('INSERT INTO habits (name, target_per_week) VALUES (?, ?)').run('H6', 7);

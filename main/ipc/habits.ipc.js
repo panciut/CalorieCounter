@@ -131,36 +131,9 @@ function registerHabitsIpc() {
   });
 
   // ── Current streak: consecutive days going back from today ──────────────────
-  ipcMain.handle('habits:getCurrentStreak', (_, { habit_id }) => {
-    const rows = getDb()
-      .prepare(
-        'SELECT DISTINCT date FROM habit_logs WHERE habit_id = ? ORDER BY date DESC'
-      )
-      .all(habit_id)
-      .map(r => r.date);
-
-    if (!rows.length) return { streak: 0 };
-
-    const todayStr  = today();
-    const dateSet   = new Set(rows);
-    let streak      = 0;
-    let d           = new Date(todayStr + 'T00:00:00');
-
-    // Allow streak to start from today or yesterday
-    if (!dateSet.has(todayStr)) {
-      d.setDate(d.getDate() - 1);
-      if (!dateSet.has(localDateStr(d))) {
-        return { streak: 0 };
-      }
-    }
-
-    while (dateSet.has(localDateStr(d))) {
-      streak++;
-      d.setDate(d.getDate() - 1);
-    }
-
-    return { streak };
-  });
+  ipcMain.handle('habits:getCurrentStreak', (_, { habit_id }) => ({
+    streak: computeCurrentStreak(getDb(), habit_id, today()),
+  }));
 
   // ── Month data: dates checked in a given month ──────────────────────────────
   ipcMain.handle('habits:getMonthData', (_, { habit_id, year, month }) => {
@@ -250,7 +223,8 @@ function computeLongestStreak(db, habitId) {
 // ── computeHabitStats ────────────────────────────────────────────────────────
 function computeHabitStats(db, { habitId, today: todayDate }) {
   const habit = db.prepare('SELECT * FROM habits WHERE id = ?').get(habitId);
-  const target_per_week = (habit && habit.target_per_week != null) ? habit.target_per_week : 7;
+  if (!habit) return { current_streak: 0, longest_streak: 0, completion_rate_30d: 0, checks_30d: [], target_per_week: 7, checks_this_week: 0, checks_prev_week: 0, on_track: false };
+  const target_per_week = habit.target_per_week != null ? habit.target_per_week : 7;
 
   // checks_30d: dates in last 30 days including today
   const from30 = offsetDate(todayDate, -29);
