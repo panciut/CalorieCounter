@@ -1,4 +1,4 @@
-const { median, mulberry32, pearson, spearman } = require('./stats');
+const { median, mulberry32, pearson, spearman, rank } = require('./stats');
 
 describe('median', () => {
   it('odd length', () => { expect(median([3, 1, 2])).toBe(2); });
@@ -24,4 +24,10 @@ describe('pearson', () => {
 describe('spearman', () => {
   it('monotonic non-linear → 1', () => { expect(spearman([1,2,3,4], [1,4,9,16])).toBeCloseTo(1, 10); });
   it('handles ties (average ranks)', () => { expect(spearman([1,2,2,3], [1,2,3,4])).toBeCloseTo(0.9486832981, 6); });
+});
+
+describe('rank', () => {
+  it('assigns 1-based ranks', () => { expect(rank([3,1,2])).toEqual([3,1,2]); });
+  it('average-ranks ties', () => { expect(rank([1,2,2,3])).toEqual([1, 2.5, 2.5, 4]); });
+  it('all equal values', () => { expect(rank([1,1,1])).toEqual([2,2,2]); });
 });

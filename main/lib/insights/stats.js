@@ -18,7 +18,10 @@ function mulberry32(seed) {
   };
 }
 
-function mean(xs) { return xs.reduce((s, v) => s + v, 0) / xs.length; }
+function mean(xs) {
+  if (!xs || xs.length === 0) return 0;
+  return xs.reduce((s, v) => s + v, 0) / xs.length;
+}
 
 function pearson(x, y) {
   const n = Math.min(x.length, y.length);
