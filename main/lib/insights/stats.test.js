@@ -68,3 +68,51 @@ describe('benjaminiHochberg', () => {
     expect(benjaminiHochberg([], 0.1)).toEqual({ survived: [], qValues: [] });
   });
 });
+
+const { linearRegression, robustZ, residualizeOnWeekend, groupContrast } = require('./stats');
+
+describe('linearRegression', () => {
+  it('fits y = 2t + 1', () => {
+    const t = [0,1,2,3,4], y = [1,3,5,7,9];
+    const r = linearRegression(t, y);
+    expect(r.slope).toBeCloseTo(2, 10);
+    expect(r.intercept).toBeCloseTo(1, 10);
+    expect(r.r2).toBeCloseTo(1, 10);
+    expect(r.sd).toBeCloseTo(Math.sqrt(8), 6);
+  });
+  it('flat series → slope 0', () => {
+    expect(linearRegression([0,1,2], [5,5,5]).slope).toBeCloseTo(0, 10);
+  });
+});
+
+describe('robustZ', () => {
+  it('uses median + MAD', () => {
+    const base = [10,10,10,10,10,10,12];
+    expect(robustZ(10, base)).toBe(0);
+  });
+  it('detects a spike', () => {
+    const base = [100,102,98,101,99,100,103,97];
+    expect(robustZ(200, base)).toBeGreaterThan(3);
+  });
+});
+
+describe('residualizeOnWeekend', () => {
+  it('removes a pure weekend offset', () => {
+    const v  = [1,1,1,5,5, 1,1,1,5,5];
+    const wk = [false,false,false,true,true, false,false,false,true,true];
+    const res = residualizeOnWeekend(v, wk);
+    for (const r of res) expect(Math.abs(r)).toBeLessThan(1e-9);
+  });
+});
+
+describe('groupContrast', () => {
+  it('splits by mask', () => {
+    const vals = [4,5,4,2,1,2];
+    const mask = [true,true,true,false,false,false];
+    const c = groupContrast(vals, mask);
+    expect(c.highMean).toBeCloseTo(13/3, 6);
+    expect(c.lowMean).toBeCloseTo(5/3, 6);
+    expect(c.highN).toBe(3);
+    expect(c.lowN).toBe(3);
+  });
+});

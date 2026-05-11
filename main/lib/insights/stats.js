@@ -100,4 +100,46 @@ function benjaminiHochberg(pvalues, q = 0.1) {
   return { survived, qValues: qv };
 }
 
-module.exports = { median, mean, mulberry32, pearson, spearman, rank, permutationTest, benjaminiHochberg };
+function linearRegression(t, y) {
+  const n = Math.min(t.length, y.length);
+  if (n < 2) return { slope: 0, intercept: y[0] ?? 0, r2: 0, sd: 0 };
+  const mt = mean(t.slice(0, n)), my = mean(y.slice(0, n));
+  let stt = 0, sty = 0, syy = 0;
+  for (let i = 0; i < n; i++) {
+    const dt = t[i] - mt, dy = y[i] - my;
+    stt += dt * dt; sty += dt * dy; syy += dy * dy;
+  }
+  const slope = stt === 0 ? 0 : sty / stt;
+  const intercept = my - slope * mt;
+  const r2 = (stt === 0 || syy === 0) ? 0 : (sty * sty) / (stt * syy);
+  const sd = Math.sqrt(syy / n);
+  return { slope, intercept, r2, sd };
+}
+
+function robustZ(value, baseline) {
+  const med = median(baseline);
+  if (med == null) return 0;
+  const mad = median(baseline.map(v => Math.abs(v - med)));
+  if (!mad) return 0;
+  return (value - med) / (1.4826 * mad);
+}
+
+function residualizeOnWeekend(series, isWeekendFlags) {
+  const wkVals = [], wdVals = [];
+  for (let i = 0; i < series.length; i++) (isWeekendFlags[i] ? wkVals : wdVals).push(series[i]);
+  const wkMean = wkVals.length ? mean(wkVals) : 0;
+  const wdMean = wdVals.length ? mean(wdVals) : 0;
+  return series.map((v, i) => v - (isWeekendFlags[i] ? wkMean : wdMean));
+}
+
+function groupContrast(values, mask) {
+  const high = [], low = [];
+  for (let i = 0; i < values.length; i++) (mask[i] ? high : low).push(values[i]);
+  return {
+    highMean: high.length ? mean(high) : null,
+    lowMean:  low.length  ? mean(low)  : null,
+    highN: high.length, lowN: low.length,
+  };
+}
+
+module.exports = { median, mean, mulberry32, pearson, spearman, rank, permutationTest, benjaminiHochberg, linearRegression, robustZ, residualizeOnWeekend, groupContrast };
