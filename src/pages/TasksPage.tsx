@@ -3,10 +3,14 @@ import { api } from '../api';
 import { useToast } from '../components/Toast';
 import { useT } from '../i18n/useT';
 import { useAchievementToast } from '../hooks/useAchievementToast';
-import { today, formatShortDate } from '../lib/dateUtil';
+import { today, addDays, formatShortDate } from '../lib/dateUtil';
 import { cardOuter, eyebrow, serifItalic } from '../lib/fbUI';
 import { fbBtnPrimary, fbBtnGhost, fbBtnIcon } from '../lib/fbStyles';
-import type { Task } from '../types';
+import BarChartCard from '../components/BarChartCard';
+import StreakBadge from '../components/StreakBadge';
+import WeeklySummaryCard from '../components/WeeklySummaryCard';
+import ModuleInsightsCard from '../components/ModuleInsightsCard';
+import type { Task, TasksStats } from '../types';
 
 // ── Priority colours ─────────────────────────────────────────────────────────
 
@@ -82,6 +86,8 @@ export default function TasksPage() {
   const [editTitle, setEditTitle] = useState('');
   const [filterDone, setFilterDone] = useState<'all' | 'open' | 'done'>('all');
 
+  const [tasksStats, setTasksStats] = useState<TasksStats | null>(null);
+
   const dragTaskIdRef = useRef<number | null>(null);
   const dragOverTaskIdRef = useRef<number | null>(null);
 
@@ -92,7 +98,16 @@ export default function TasksPage() {
     } catch { /* silent */ }
   }, [date]);
 
-  useEffect(() => { loadTasks(); }, [loadTasks]);
+  const loadStats = useCallback(async () => {
+    try {
+      const from = addDays(today(), -29);
+      const to = today();
+      const stats = await api.tasks.getStats(from, to);
+      setTasksStats(stats);
+    } catch {}
+  }, []);
+
+  useEffect(() => { loadTasks(); loadStats(); }, [loadTasks, loadStats]);
 
   // ── Add ──────────────────────────────────────────────────────────────────
 
@@ -217,10 +232,47 @@ export default function TasksPage() {
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <header style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
         <span style={eyebrow}>{t('tasks.eyebrow')}</span>
-        <span style={{ ...serifItalic, fontSize: 26, fontWeight: 400, color: 'var(--fb-text)', letterSpacing: -0.5, lineHeight: 1.1 }}>
-          {t('tasks.title')}
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <span style={{ ...serifItalic, fontSize: 26, fontWeight: 400, color: 'var(--fb-text)', letterSpacing: -0.5, lineHeight: 1.1 }}>
+            {t('tasks.title')}
+          </span>
+          {tasksStats && (
+            <StreakBadge
+              current={tasksStats.current_streak}
+              best={tasksStats.best_streak}
+              emoji="✅"
+              label={t('tasks.clearStreak')}
+            />
+          )}
+        </div>
       </header>
+
+      {/* ── Weekly Summary ───────────────────────────────────────────────── */}
+      {tasksStats && (
+        <WeeklySummaryCard
+          title={t('tasks.weekTitle')}
+          metrics={[
+            {
+              label: t('tasks.completed'),
+              thisWeek: tasksStats.week_done,
+              lastWeek: tasksStats.last_week_done,
+              higherIsBetter: true,
+            },
+            {
+              label: t('tasks.completionRate'),
+              thisWeek: tasksStats.week_total > 0 ? Math.round((tasksStats.week_done / tasksStats.week_total) * 100) : 0,
+              lastWeek: tasksStats.last_week_total > 0 ? Math.round((tasksStats.last_week_done / tasksStats.last_week_total) * 100) : 0,
+              unit: '%',
+              higherIsBetter: true,
+            },
+            {
+              label: t('tasks.created'),
+              thisWeek: tasksStats.week_total,
+              lastWeek: tasksStats.last_week_total,
+            },
+          ]}
+        />
+      )}
 
       {/* ── Date navigation ─────────────────────────────────────────────────── */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -470,6 +522,24 @@ export default function TasksPage() {
           </button>
         </div>
       </section>
+
+      {/* ── 30-day chart ─────────────────────────────────────────────── */}
+      {tasksStats && tasksStats.days.some(d => d.total > 0) && (
+        <section style={cardOuter}>
+          <span style={eyebrow}>{t('tasks.chart30Title')}</span>
+          <BarChartCard
+            data={tasksStats.days.map(d => ({
+              label: formatShortDate(d.date),
+              value: d.done,
+            }))}
+            height={180}
+            color="var(--fb-accent)"
+          />
+        </section>
+      )}
+
+      {/* ── Correlazioni ─────────────────────────────────────────────── */}
+      <ModuleInsightsCard modules={['tasks']} />
 
     </div>
   );
