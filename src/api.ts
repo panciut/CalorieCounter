@@ -73,6 +73,8 @@ export const api = {
     swapLunchDinner:    (date: string) => invoke<{ ok: boolean }>('log:swapLunchDinner', { date }),
     swapDays:           (data: { dateA: string; dateB: string }) =>
                           invoke<{ ok: boolean; swapped: number }>('log:swapDays', data),
+    copyDay:            (data: { from: string; to: string }) =>
+                          invoke<{ ok: boolean; copied: number }>('log:copyDay', data),
     getWeeklySummaries: () => invoke<WeeklySummary[]>('log:getWeeklySummaries'),
     getWeekDetail:      (weekStart: string) => invoke<WeekDayDetail[]>('log:getWeekDetail', { weekStart }),
   },

@@ -11,6 +11,7 @@ import MealPills from '../components/MealPills';
 import Modal from '../components/Modal';
 import ConfirmDialog from '../components/ConfirmDialog';
 import SwapDaysModal from '../components/SwapDaysModal';
+import CopyDayModal from '../components/CopyDayModal';
 import QuickFoodDialog from '../components/QuickFoodDialog';
 import { fbBtnIcon, fbBtnGhost, fbBtnPrimary, fbCard } from '../lib/fbStyles';
 import { today, addDays } from '../lib/dateUtil';
@@ -137,6 +138,7 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
 
   const [quickFoodOpen, setQuickFoodOpen]   = useState(false);
   const [swapOpen, setSwapOpen]             = useState(false);
+  const [copyDayOpen, setCopyDayOpen]       = useState(false);
   const [waterCustomOpen, setWaterCustomOpen] = useState(false);
   const [waterCustomMl, setWaterCustomMl]   = useState('');
   const [confirmAllOpen, setConfirmAllOpen] = useState(false);
@@ -441,6 +443,9 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
           </button>
           <div style={{ width: 1, height: 22, background: 'var(--fb-border)', margin: '0 4px' }} />
           <button onClick={() => setSwapOpen(true)} style={btnGhost}>{t('dash.planBtn')}</button>
+          <button onClick={() => setCopyDayOpen(true)} style={btnIcon} title={t('copyDay.title')}>
+            <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3"/><rect x="8" y="2" width="8" height="7" rx="1"/></svg>
+          </button>
           <button onClick={handleCopyDay} style={btnIcon} title={t('export.copyDay')}>
             <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
           </button>
@@ -705,6 +710,12 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
         isOpen={swapOpen} initialDate={dateStr}
         onClose={() => setSwapOpen(false)}
         onSwapped={n => { showToast(t('swap.toastSwapped').replace('{n}', String(n)), 'success'); load(); }}
+      />
+
+      <CopyDayModal
+        isOpen={copyDayOpen} initialDate={dateStr}
+        onClose={() => setCopyDayOpen(false)}
+        onCopied={n => { showToast(t('copyDay.submit') + ': ' + n, 'success'); load(); }}
       />
 
       <Modal isOpen={waterCustomOpen} onClose={() => setWaterCustomOpen(false)} title={t('dash.addWater')}>

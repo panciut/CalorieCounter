@@ -198,6 +198,23 @@ function registerLogIpc() {
     })();
   });
 
+  ipcMain.handle('log:copyDay', (_, { from, to }) => {
+    if (!from || !to || from === to) return { ok: false, copied: 0 };
+    const db = getDb();
+    return db.transaction(() => {
+      const rows = db.prepare(
+        "SELECT food_id, grams, meal FROM log WHERE date = ? AND status = 'logged'"
+      ).all(from);
+      if (rows.length === 0) return { ok: true, copied: 0 };
+      // Destination status: 'planned' so user can confirm; matches swap-days pattern
+      const insert = db.prepare(
+        "INSERT INTO log (date, food_id, grams, meal, status) VALUES (?, ?, ?, ?, 'planned')"
+      );
+      for (const r of rows) insert.run(to, r.food_id, r.grams, r.meal);
+      return { ok: true, copied: rows.length };
+    })();
+  });
+
   ipcMain.handle('log:delete', (_, { id }) => {
     const db = getDb();
     const row = db.prepare('SELECT date, food_id, grams, meal, COALESCE(f.display_name, f.name) AS food_name FROM log l JOIN foods f ON f.id = l.food_id WHERE l.id = ?').get(id);
