@@ -14,8 +14,21 @@ function registerSettingsIpc() {
       tol_1: 5, tol_2: 10, tol_3: 20,
       pantry_enabled: 1, pantry_warn_days: 3, pantry_urgent_days: 1,
       onboarding_complete: 0,
+    notif_meal_reminders: 0,
+    notif_meal_breakfast: 1,
+    notif_meal_lunch: 1,
+    notif_meal_dinner: 1,
+    notif_meal_snack: 0,
+    notif_meal_breakfast_time: '08:00',
+    notif_meal_lunch_time: '13:00',
+    notif_meal_dinner_time: '20:00',
+    notif_meal_snack_time: '16:00',
+    dashboard_widget_order: '',
     };
-    const stringKeys = new Set(['language', 'theme']);
+    const stringKeys = new Set(['language', 'theme',
+      'notif_meal_breakfast_time', 'notif_meal_lunch_time',
+      'notif_meal_dinner_time', 'notif_meal_snack_time',
+      'dashboard_widget_order']);
     for (const { key, value } of getDb().prepare('SELECT key, value FROM settings').all()) {
       if (key in defaults) defaults[key] = stringKeys.has(key) ? value : parseFloat(value);
     }

@@ -297,6 +297,7 @@ export interface Settings {
   notif_meal_lunch_time: string;
   notif_meal_dinner_time: string;
   notif_meal_snack_time: string;
+  dashboard_widget_order: string;
   onboarding_complete?: number;     // 0 or 1
   insights_enabled?: number;
   insights_use_nutrition?: number;

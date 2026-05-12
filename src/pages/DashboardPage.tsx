@@ -84,6 +84,41 @@ const btnIcon    = fbBtnIcon;
 const btnGhost   = fbBtnGhost;
 const btnPrimary = fbBtnPrimary;
 
+// ── DragSection ───────────────────────────────────────────────────────────────
+
+interface DragSectionProps {
+  id: string;
+  dragId: string | null;
+  dragOverId: string | null;
+  onDragStart: (id: string) => void;
+  onDragOver: (id: string) => void;
+  onDrop: (id: string) => void;
+  onDragEnd: () => void;
+  children: React.ReactNode;
+}
+
+function DragSection({ id, dragId, dragOverId, onDragStart, onDragOver, onDrop, onDragEnd, children }: DragSectionProps) {
+  return (
+    <div
+      draggable
+      onDragStart={e => { e.dataTransfer.effectAllowed = 'move'; onDragStart(id); }}
+      onDragOver={e => { e.preventDefault(); onDragOver(id); }}
+      onDrop={() => onDrop(id)}
+      onDragEnd={onDragEnd}
+      style={{
+        opacity: dragId === id ? 0.35 : 1,
+        transition: 'opacity 0.15s',
+        borderRadius: 12,
+        outline: dragOverId === id && dragId !== id ? '2px dashed var(--fb-accent)' : 'none',
+        outlineOffset: 4,
+        cursor: dragId ? 'grabbing' : 'auto',
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
 // ── DashboardPage ─────────────────────────────────────────────────────────────
 
 interface DashboardPageProps {
@@ -142,6 +177,40 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
   const [waterCustomOpen, setWaterCustomOpen] = useState(false);
   const [waterCustomMl, setWaterCustomMl]   = useState('');
   const [confirmAllOpen, setConfirmAllOpen] = useState(false);
+
+  // ── Widget reorder (drag-and-drop) ────────────────────────────────────────
+  const DEFAULT_WIDGET_ORDER = ['gamification','hero','tasks_habits','diary','lifestyle','workout','insights','secondary','collapsibles'];
+  const [widgetOrder, setWidgetOrder] = useState<string[]>(DEFAULT_WIDGET_ORDER);
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      const stored = settings?.dashboard_widget_order;
+      if (stored) {
+        const parsed = JSON.parse(stored) as string[];
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const merged = [...DEFAULT_WIDGET_ORDER.filter(id => !parsed.includes(id)), ...parsed];
+          setWidgetOrder(merged.filter(id => DEFAULT_WIDGET_ORDER.includes(id)));
+        }
+      }
+    } catch {}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings?.dashboard_widget_order]);
+
+  function handleWidgetDrop(targetId: string) {
+    if (!dragId || dragId === targetId) { setDragId(null); setDragOverId(null); return; }
+    const newOrder = [...widgetOrder];
+    const fromIdx = newOrder.indexOf(dragId);
+    const toIdx = newOrder.indexOf(targetId);
+    if (fromIdx === -1 || toIdx === -1) { setDragId(null); setDragOverId(null); return; }
+    newOrder.splice(fromIdx, 1);
+    newOrder.splice(toIdx, 0, dragId);
+    setWidgetOrder(newOrder);
+    api.settings.save({ dashboard_widget_order: JSON.stringify(newOrder) });
+    setDragId(null);
+    setDragOverId(null);
+  }
 
   const load = useCallback(async () => {
     const [ent, fav, fds, wd, rcs, nd, freq] = await Promise.all([
@@ -576,130 +645,149 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
       {/* ── SCROLL AREA ──────────────────────────────────────────────────── */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '20px 28px 60px' }} className="hide-scrollbar">
         <div style={{ maxWidth: 1280, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
-
-          {/* ── GAMIFICATION ────────────────────────────────────────────── */}
-          <section>
-            <GamificationCard />
-          </section>
-
-          {/* ── SECTION STREAKS ─────────────────────────────────────────── */}
-          <section>
-            <SectionStreaksCard />
-          </section>
-
-          {/* ── HERO BENTO ──────────────────────────────────────────────── */}
-          <section className="dash-hero-grid">
-            <DailyIntakeCard
-              calories={{ actual: T.cal,     min: TG.cal.min,     max: TG.cal.max,     rec: TG.cal.rec }}
-              protein={{ actual: T.protein,  min: TG.protein.min, max: TG.protein.max, rec: TG.protein.rec }}
-              carbs={{   actual: T.carbs,    min: TG.carbs.min,   max: TG.carbs.max,   rec: TG.carbs.rec }}
-              fat={{     actual: T.fat,      min: TG.fat.min,     max: TG.fat.max,     rec: TG.fat.rec }}
-            />
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <EnergyBalanceCard
-                caloriesIn={caloriesIn}
-                netKcal={netKcal}
-                energyOut={energyOut}
-                stepCount={stepCount}
-                restingKcal={restingKcal}
-                activeKcal={activeKcal}
-                extraKcal={extraKcal}
-                steps={steps}
-                restingFromYest={restingFromYest}
-                onRestingChange={v => { setRestingKcal(v); setRestingFromYest(false); }}
-                onActiveChange={setActiveKcal}
-                onExtraChange={setExtraKcal}
-                onStepsChange={v => setSteps(v.replace(/[^0-9]/g, ''))}
-                onSave={handleEnergySave}
-              />
-              <WaterCard
-                waterTotal={waterTotal}
-                waterGoal={waterGoal}
-                onAdd={addWater}
-                onCustom={() => setWaterCustomOpen(true)}
-              />
-            </div>
-          </section>
-
-          {/* ── TASKS + HABITS ──────────────────────────────────────────── */}
-          <section className="dash-secondary-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
-            <TasksCard />
-            <HabitsCard />
-          </section>
-
-          {/* ── QUICK LOG STRIP ─────────────────────────────────────────── */}
-          <QuickLogStrip
-            favorites={favorites}
-            frequent={frequent}
-            onQuickLog={quickLog}
-            onNavigateFoods={() => navigate('foods')}
-          />
-
-          {/* ── DIARY TABLE ─────────────────────────────────────────────── */}
-          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <ReliabilityPill date={dateStr} />
-          </div>
-          <DiaryTable
-            mealGroups={mealGroups}
-            loggedEntries={loggedEntries}
-            plannedEntries={plannedEntries}
-            totalFoods={totalFoods}
-            totalMeals={totalMeals}
-            plannedKcalSum={plannedKcalSum}
-            onConfirmPlanned={handleConfirmPlanned}
-            onConfirmAll={() => setConfirmAllOpen(true)}
-            onAddToMeal={m => { setMeal(m as Meal); handleClear(); }}
-            onAddFirst={() => handleClear()}
-            onCopyDay={handleCopyDay}
-          />
-
-          {/* ── LIFESTYLE: Sleep · Focus · Mood ─────────────────────────── */}
-          <section className="dash-secondary-grid">
-            <SleepCard />
-            <FocusCard />
-            <MoodCard />
-          </section>
-
-          {/* ── WORKOUT ─────────────────────────────────────────────────── */}
-          <section>
-            <WorkoutCard />
-          </section>
-
-          {/* ── INSIGHT OF THE DAY ──────────────────────────────────────── */}
-          <InsightCard />
-
-          {/* ── SECONDARY BENTO ─────────────────────────────────────────── */}
-          <section className="dash-secondary-grid">
-            <SupplementsWidget supplements={supplements} onTake={handleTakeSuppl} />
-            <PantryWidget enabled={settings.pantry_enabled !== 0} lowItems={pantryLow} />
-            <WeightWidget weightKg={weightKg} weightTrend={weightTrend} />
-          </section>
-
-          {/* ── COLLAPSIBLES ────────────────────────────────────────────── */}
-          <section style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-
-            <CollapsibleSection
-              icon={<svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M6.5 6.5a5 5 0 000 11M17.5 6.5a5 5 0 010 11M3 12h3m12 0h3M6.5 12h11"/></svg>}
-              title={t('dash.exerciseTitle')}
-              subtitle={exercises.length > 0 ? t('dash.exerciseSummary', { n: exercises.length, kcal: exTotalKcal, min: exTotalMin }) : t('dash.logWorkout')}
-              badge={exercises.length > 0 ? t('dash.nSessions', { n: exercises.length }) : t('dash.empty')}
-            >
-              <ExerciseSection date={dateStr} weightKg={weightKg} onCaloriesChange={() => {}} />
-            </CollapsibleSection>
-
-            <CollapsibleSection
-              icon={<svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>}
-              title={t('dash.notesTitle')}
-              subtitle={note ? note.slice(0, 60) + (note.length > 60 ? '…' : '') : t('dash.notesHint')}
-              badge={note ? t('dash.hasNote') : t('dash.empty')}
-            >
-              <textarea value={note} onChange={e => handleNoteChange(e.target.value)}
-                placeholder={t('dash.notesPlaceholder')} rows={4}
-                style={{ width: '100%', background: 'var(--fb-bg-2)', border: '1px solid var(--fb-border)', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: 'var(--fb-text)', outline: 'none', fontFamily: 'var(--font-body)', resize: 'vertical', marginTop: 12 }}
-              />
-            </CollapsibleSection>
-
-          </section>
+          {widgetOrder.map(wid => {
+            const dragProps = {
+              id: wid, dragId, dragOverId,
+              onDragStart: setDragId,
+              onDragOver: setDragOverId,
+              onDrop: handleWidgetDrop,
+              onDragEnd: () => { setDragId(null); setDragOverId(null); },
+            };
+            if (wid === 'gamification') return (
+              <DragSection key={wid} {...dragProps}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  <GamificationCard />
+                  <SectionStreaksCard />
+                </div>
+              </DragSection>
+            );
+            if (wid === 'hero') return (
+              <DragSection key={wid} {...dragProps}>
+                <section className="dash-hero-grid">
+                  <DailyIntakeCard
+                    calories={{ actual: T.cal,     min: TG.cal.min,     max: TG.cal.max,     rec: TG.cal.rec }}
+                    protein={{ actual: T.protein,  min: TG.protein.min, max: TG.protein.max, rec: TG.protein.rec }}
+                    carbs={{   actual: T.carbs,    min: TG.carbs.min,   max: TG.carbs.max,   rec: TG.carbs.rec }}
+                    fat={{     actual: T.fat,      min: TG.fat.min,     max: TG.fat.max,     rec: TG.fat.rec }}
+                  />
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                    <EnergyBalanceCard
+                      caloriesIn={caloriesIn}
+                      netKcal={netKcal}
+                      energyOut={energyOut}
+                      stepCount={stepCount}
+                      restingKcal={restingKcal}
+                      activeKcal={activeKcal}
+                      extraKcal={extraKcal}
+                      steps={steps}
+                      restingFromYest={restingFromYest}
+                      onRestingChange={v => { setRestingKcal(v); setRestingFromYest(false); }}
+                      onActiveChange={setActiveKcal}
+                      onExtraChange={setExtraKcal}
+                      onStepsChange={v => setSteps(v.replace(/[^0-9]/g, ''))}
+                      onSave={handleEnergySave}
+                    />
+                    <WaterCard
+                      waterTotal={waterTotal}
+                      waterGoal={waterGoal}
+                      onAdd={addWater}
+                      onCustom={() => setWaterCustomOpen(true)}
+                    />
+                  </div>
+                </section>
+              </DragSection>
+            );
+            if (wid === 'tasks_habits') return (
+              <DragSection key={wid} {...dragProps}>
+                <section className="dash-secondary-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
+                  <TasksCard />
+                  <HabitsCard />
+                </section>
+              </DragSection>
+            );
+            if (wid === 'diary') return (
+              <DragSection key={wid} {...dragProps}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  <QuickLogStrip
+                    favorites={favorites}
+                    frequent={frequent}
+                    onQuickLog={quickLog}
+                    onNavigateFoods={() => navigate('foods')}
+                  />
+                  <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                    <ReliabilityPill date={dateStr} />
+                  </div>
+                  <DiaryTable
+                    mealGroups={mealGroups}
+                    loggedEntries={loggedEntries}
+                    plannedEntries={plannedEntries}
+                    totalFoods={totalFoods}
+                    totalMeals={totalMeals}
+                    plannedKcalSum={plannedKcalSum}
+                    onConfirmPlanned={handleConfirmPlanned}
+                    onConfirmAll={() => setConfirmAllOpen(true)}
+                    onAddToMeal={m => { setMeal(m as Meal); handleClear(); }}
+                    onAddFirst={() => handleClear()}
+                    onCopyDay={handleCopyDay}
+                  />
+                </div>
+              </DragSection>
+            );
+            if (wid === 'lifestyle') return (
+              <DragSection key={wid} {...dragProps}>
+                <section className="dash-secondary-grid">
+                  <SleepCard />
+                  <FocusCard />
+                  <MoodCard />
+                </section>
+              </DragSection>
+            );
+            if (wid === 'workout') return (
+              <DragSection key={wid} {...dragProps}>
+                <WorkoutCard />
+              </DragSection>
+            );
+            if (wid === 'insights') return (
+              <DragSection key={wid} {...dragProps}>
+                <InsightCard />
+              </DragSection>
+            );
+            if (wid === 'secondary') return (
+              <DragSection key={wid} {...dragProps}>
+                <section className="dash-secondary-grid">
+                  <SupplementsWidget supplements={supplements} onTake={handleTakeSuppl} />
+                  <PantryWidget enabled={settings.pantry_enabled !== 0} lowItems={pantryLow} />
+                  <WeightWidget weightKg={weightKg} weightTrend={weightTrend} />
+                </section>
+              </DragSection>
+            );
+            if (wid === 'collapsibles') return (
+              <DragSection key={wid} {...dragProps}>
+                <section style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <CollapsibleSection
+                    icon={<svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M6.5 6.5a5 5 0 000 11M17.5 6.5a5 5 0 010 11M3 12h3m12 0h3M6.5 12h11"/></svg>}
+                    title={t('dash.exerciseTitle')}
+                    subtitle={exercises.length > 0 ? t('dash.exerciseSummary', { n: exercises.length, kcal: exTotalKcal, min: exTotalMin }) : t('dash.logWorkout')}
+                    badge={exercises.length > 0 ? t('dash.nSessions', { n: exercises.length }) : t('dash.empty')}
+                  >
+                    <ExerciseSection date={dateStr} weightKg={weightKg} onCaloriesChange={() => {}} />
+                  </CollapsibleSection>
+                  <CollapsibleSection
+                    icon={<svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>}
+                    title={t('dash.notesTitle')}
+                    subtitle={note ? note.slice(0, 60) + (note.length > 60 ? '…' : '') : t('dash.notesHint')}
+                    badge={note ? t('dash.hasNote') : t('dash.empty')}
+                  >
+                    <textarea value={note} onChange={e => handleNoteChange(e.target.value)}
+                      placeholder={t('dash.notesPlaceholder')} rows={4}
+                      style={{ width: '100%', background: 'var(--fb-bg-2)', border: '1px solid var(--fb-border)', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: 'var(--fb-text)', outline: 'none', fontFamily: 'var(--font-body)', resize: 'vertical', marginTop: 12 }}
+                    />
+                  </CollapsibleSection>
+                </section>
+              </DragSection>
+            );
+            return null;
+          })}
         </div>
       </div>
 
