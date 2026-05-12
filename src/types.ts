@@ -288,6 +288,15 @@ export interface Settings {
   notif_weight: number;
   notif_weight_warn_days: number;   // default 3
   notif_weight_urgent_days: number; // default 7
+  notif_meal_reminders: number;
+  notif_meal_breakfast: number;
+  notif_meal_lunch: number;
+  notif_meal_dinner: number;
+  notif_meal_snack: number;
+  notif_meal_breakfast_time: string;
+  notif_meal_lunch_time: string;
+  notif_meal_dinner_time: string;
+  notif_meal_snack_time: string;
   onboarding_complete?: number;     // 0 or 1
   insights_enabled?: number;
   insights_use_nutrition?: number;
@@ -790,16 +799,38 @@ export interface InsightContrast {
   highMean: number | null; lowMean: number | null; highN: number; lowN: number;
   cutoff: number; cutoffLabel: string; predictor: string; outcome: string;
 }
+
+export interface ExplainedTrendFactor {
+  predictor: string;
+  outcome: string;
+  lag: number;
+  stat: number;
+  n: number;
+  cutoffLabel: string;
+  highMean: number;
+  lowMean: number;
+  weekendControlled: boolean;
+  points?: { x: number; y: number }[];
+}
+
 export interface InsightEvidence {
   n?: number; rho?: number; r?: number; pValue?: number; qValue?: number; lag?: number;
   slope?: number; zScore?: number; reliabilityBasis?: number;
   weekendControlled?: { rho?: number; r?: number; survived: boolean };
   contrast?: InsightContrast;
+  points?: { x: number; y: number }[];
+  causalFactors?: ExplainedTrendFactor[];
+  downstreamEffects?: ExplainedTrendFactor[];
+  milestoneId?: string;
+  achievedDate?: string;
+  streakLength?: number | null;
+  milestoneValue?: number | null;
 }
+
 export interface Insight {
   id: string;
-  type: 'association' | 'trend' | 'anomaly' | 'factor' | 'milestone';
-  tier: 1 | 2 | 3;
+  type: 'association' | 'trend' | 'anomaly' | 'factor' | 'milestone' | 'explained_trend';
+  tier: 0 | 1 | 2 | 3;
   severity: 'info' | 'notice' | 'strong';
   score: number;
   subject: string;
