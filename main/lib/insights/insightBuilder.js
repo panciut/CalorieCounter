@@ -5,6 +5,8 @@ const { findAssociations } = require('./associations');
 const { findTrends } = require('./trends');
 const { findAnomalies } = require('./anomalies');
 const { findFactorInsights } = require('./factorAnalysis');
+const { findMilestones } = require('./milestones');
+const { synthesizeTrendInsights } = require('./synthesize');
 const { renderInsight } = require('./templates');
 
 function addDays(date, n) { return new Date(new Date(date + 'T00:00:00Z').getTime() + n * 86400000).toISOString().slice(0, 10); }
@@ -35,6 +37,13 @@ const MODULE_OF = {
 };
 function moduleOf(metric) { return MODULE_OF[metric] || ['other']; }
 
+const MILESTONE_MODULE = {
+  habit_streak_7: ['habits'], habit_streak_14: ['habits'], habit_streak_30: ['habits'],
+  log_streak_7: ['food'], log_streak_14: ['food'],
+  weight_new_low: ['weight'],
+  perfect_day: ['habits'],
+};
+
 function buildInsights(db, { windowDays = 90, settings, today }) {
   if (!settings || settings.enabled === false) return { insights: [], dataQuality: { windowDays, daysWithAnyData: 0, perSignalCoverage: {}, reliableFoodDays: 0, tierUnlocked: 0 } };
   const from = addDays(today, -(windowDays - 1));
@@ -42,54 +51,155 @@ function buildInsights(db, { windowDays = 90, settings, today }) {
   computeReliability(facts);
   const dq = dataQuality(facts, windowDays);
 
-  const lang = 'it';
+  const lang = settings.language || 'it';
   const out = [];
 
-  // Tier 1: trends
-  for (const t of findTrends(facts, settings)) {
+  // Gather raw arrays before rendering (needed by synthesizer)
+  const trendRaws = findTrends(facts, settings);
+  const assocRaws = dq.tierUnlocked >= 3 ? findAssociations(facts, settings) : [];
+
+  // Milestones (tier 0 — highest priority)
+  for (const m of findMilestones(facts, settings)) {
+    const rendered = renderInsight(m, lang) || {};
+    out.push({
+      id: `milestone:${m.id}`,
+      type: 'milestone',
+      tier: 0,
+      severity: 'strong',
+      subject: m.id,
+      relatedModules: MILESTONE_MODULE[m.id] || ['other'],
+      period: { from: m.achievedDate, to: m.achievedDate },
+      evidence: { milestoneId: m.id, achievedDate: m.achievedDate, streakLength: m.streakLength ?? null, milestoneValue: m.value ?? null },
+      confidence: 'high',
+      text: rendered.text || '',
+      recent: true,
+    });
+  }
+
+  // Tier 1: explained_trend (replaces plain trend when linked) + remaining plain trends
+  const { explained, consumedTrendIds } = synthesizeTrendInsights(trendRaws, assocRaws);
+
+  for (const et of explained) {
+    const severity = et.confidence === 'high' ? 'notice' : 'info';
+    const rendered = renderInsight(et, lang) || {};
+    out.push({
+      id: `explained_trend:${et.metric}`,
+      type: 'explained_trend',
+      tier: 1,
+      severity,
+      subject: et.metric,
+      relatedModules: [...new Set([
+        ...moduleOf(et.metric),
+        ...et.causalFactors.flatMap(f => moduleOf(f.predictor)),
+      ])],
+      period: { from, to: today },
+      evidence: {
+        n: et.n,
+        slope: et.slopePerDay,
+        causalFactors: et.causalFactors,
+        downstreamEffects: et.downstreamEffects,
+      },
+      confidence: et.confidence || 'low',
+      text: rendered.text || '',
+    });
+  }
+
+  for (const t of trendRaws) {
+    if (consumedTrendIds.has(`trend:${t.metric}`)) continue;
     const severity = t.confidence === 'high' ? 'notice' : 'info';
     const rendered = renderInsight(t, lang) || {};
-    const text = rendered.text || '';
-    out.push({ id: `trend:${t.metric}`, type: 'trend', tier: 1, severity, subject: t.metric, relatedModules: moduleOf(t.metric),
-      period: { from, to: today }, evidence: { n: t.n, slope: t.slopePerDay }, confidence: t.confidence || 'low', text });
+    out.push({
+      id: `trend:${t.metric}`,
+      type: 'trend',
+      tier: 1,
+      severity,
+      subject: t.metric,
+      relatedModules: moduleOf(t.metric),
+      period: { from, to: today },
+      evidence: { n: t.n, slope: t.slopePerDay },
+      confidence: t.confidence || 'low',
+      text: rendered.text || '',
+    });
   }
+
   // Tier 2: anomalies + factors
   if (dq.daysWithAnyData >= 10) {
     for (const a of findAnomalies(facts, settings, today)) {
       const severity = Math.abs(a.z) >= 3.5 ? 'strong' : 'notice';
       const rendered = renderInsight(a, lang) || {};
-      const text = rendered.text || '';
-      out.push({ id: `anomaly:${a.date}:${a.metric}`, type: 'anomaly', tier: 2, severity, subject: a.metric, relatedModules: moduleOf(a.metric),
-        period: { from: a.date, to: a.date }, evidence: { zScore: a.z }, confidence: 'medium', text, recent: true });
+      out.push({
+        id: `anomaly:${a.date}:${a.metric}`,
+        type: 'anomaly',
+        tier: 2,
+        severity,
+        subject: a.metric,
+        relatedModules: moduleOf(a.metric),
+        period: { from: a.date, to: a.date },
+        evidence: { zScore: a.z },
+        confidence: 'medium',
+        text: rendered.text || '',
+        recent: true,
+      });
     }
     for (const fct of findFactorInsights(facts)) {
       const rendered = renderInsight(fct, lang) || {};
-      const text = rendered.text || '';
-      out.push({ id: `factor:${fct.tag}:${fct.metric}`, type: 'factor', tier: 2, severity: 'notice', subject: `${fct.tag}~${fct.metric}`,
-        relatedModules: fct.tag === 'perceivedEffort' ? ['workouts', moduleOf(fct.metric)[0]] : [...new Set(['sleep', ...moduleOf(fct.metric)])], period: { from, to: today },
-        evidence: { n: (fct.withN || fct.highN || 0) + (fct.withoutN || fct.lowN || 0) }, confidence: 'medium', text });
+      out.push({
+        id: `factor:${fct.tag}:${fct.metric}`,
+        type: 'factor',
+        tier: 2,
+        severity: 'notice',
+        subject: `${fct.tag}~${fct.metric}`,
+        relatedModules: fct.tag === 'perceivedEffort'
+          ? ['workouts', moduleOf(fct.metric)[0]]
+          : [...new Set(['sleep', ...moduleOf(fct.metric)])],
+        period: { from, to: today },
+        evidence: { n: (fct.withN || fct.highN || 0) + (fct.withoutN || fct.lowN || 0) },
+        confidence: 'medium',
+        text: rendered.text || '',
+      });
     }
   }
+
   // Tier 3: associations
-  for (const r of findAssociations(facts, settings)) {
+  for (const r of assocRaws) {
     const severity = severityForAssoc(r);
     const confidence = confidenceForAssoc(r);
     const rendered = renderInsight(r, lang) || {};
-    const text = rendered.text || '';
-    const actionHint = rendered.actionHint;
-    out.push({ id: `assoc:${r.x}~${r.y}`, type: 'association', tier: 3, severity, subject: `${r.x}~${r.y}`,
-      relatedModules: [...new Set([...moduleOf(r.x), ...moduleOf(r.y)])], period: { from, to: today },
-      evidence: { n: r.n, [r.corr === 'spearman' ? 'rho' : 'r']: r.stat, pValue: r.pValue, qValue: r.qValue, lag: r.lag,
-        weekendControlled: { [r.corr === 'spearman' ? 'rho' : 'r']: r.weekendControlled.stat, survived: r.weekendControlled.survived },
-        contrast: r.contrast, reliabilityBasis: r.reliabilityBasis },
-      confidence, text, actionHint });
+    out.push({
+      id: `assoc:${r.x}~${r.y}`,
+      type: 'association',
+      tier: 3,
+      severity,
+      subject: `${r.x}~${r.y}`,
+      relatedModules: [...new Set([...moduleOf(r.x), ...moduleOf(r.y)])],
+      period: { from, to: today },
+      evidence: {
+        n: r.n,
+        [r.corr === 'spearman' ? 'rho' : 'r']: r.stat,
+        pValue: r.pValue,
+        qValue: r.qValue,
+        lag: r.lag,
+        weekendControlled: {
+          [r.corr === 'spearman' ? 'rho' : 'r']: r.weekendControlled.stat,
+          survived: r.weekendControlled.survived,
+        },
+        contrast: r.contrast,
+        reliabilityBasis: r.reliabilityBasis,
+        points: r.points,
+      },
+      confidence,
+      text: rendered.text || '',
+      actionHint: rendered.actionHint,
+    });
   }
 
-  // score + sort
+  // Score + sort
   for (const i of out) {
     const recency = i.recent ? 2 : 1;
     const actionability = i.actionHint ? 1.3 : 1;
-    i.score = (SEVERITY_WEIGHT[i.severity] || 1) * recency * (CONFIDENCE_FACTOR[i.confidence] || 1) * actionability;
+    const tierBonus = i.type === 'explained_trend' ? 1.5 : 1;
+    const milestoneBonus = i.type === 'milestone' ? 2 : 1;
+    i.score = (SEVERITY_WEIGHT[i.severity] || 1) * recency * (CONFIDENCE_FACTOR[i.confidence] || 1) * actionability * tierBonus * milestoneBonus;
   }
   out.sort((a, b) => b.score - a.score);
   return { insights: out, dataQuality: dq };

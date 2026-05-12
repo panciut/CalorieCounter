@@ -29,6 +29,9 @@ function readSettings(db) {
   const wg = db.prepare("SELECT value FROM settings WHERE key IN ('goal_weight','target_weight','weight_goal') LIMIT 1").get();
   if (wg && wg.value != null && wg.value !== '') s.goalWeight = Number(wg.value);
 
+  const langRow = db.prepare("SELECT value FROM settings WHERE key = 'language'").get();
+  s.language = langRow?.value ?? 'en';
+
   return s;
 }
 

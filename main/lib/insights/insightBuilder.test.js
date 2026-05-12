@@ -83,3 +83,42 @@ describe('pickOfDay', () => {
     expect(pickOfDay([], 5)).toBe(null);
   });
 });
+
+describe('buildInsights — new types', () => {
+  it('produces milestone insight when habit streak is present', () => {
+    const db = makeDb();
+    db.prepare("INSERT INTO habits (name) VALUES ('test_habit')").run();
+    for (let i = 0; i < 10; i++) {
+      const date = `2025-01-${String(i + 1).padStart(2, '0')}`;
+      db.prepare("INSERT INTO habit_logs (habit_id, date, value) VALUES (1, ?, 1)").run(date);
+      db.prepare("INSERT INTO mood_log (date,mood,energy,stress) VALUES (?,?,?,?)").run(date, 3, 3, 3);
+    }
+    const today = '2025-01-11';
+    const { insights } = buildInsights(db, { windowDays: 90, settings: SETTINGS, today });
+    const milestone = insights.find(i => i.type === 'milestone' && i.subject === 'habit_streak_7');
+    expect(milestone).toBeTruthy();
+    expect(milestone.tier).toBe(0);
+    expect(milestone.severity).toBe('strong');
+  });
+
+  it('produces explained_trend or trend for mood when sleep data exists', () => {
+    const db = makeDb();
+    const rng = mulberry32(123);
+    let d = new Date('2025-01-01T00:00:00Z');
+    for (let i = 0; i < 60; i++) {
+      const date = d.toISOString().slice(0, 10);
+      const sleepMin = 360 + Math.round(rng() * 180);
+      const mood = Math.max(1, Math.min(5, Math.round(1 + i * 0.04 + (sleepMin - 360) / 180 * 2 + (rng() - 0.5))));
+      db.prepare("INSERT INTO sleep_log (date,bedtime,wake_time,duration_min,quality) VALUES (?,?,?,?,?)").run(date, '23:00', '07:00', sleepMin, 3);
+      db.prepare("INSERT INTO mood_log (date,mood,energy,stress) VALUES (?,?,?,?)").run(date, mood, 3, 3);
+      d = new Date(d.getTime() + 86400000);
+    }
+    const today = d.toISOString().slice(0, 10);
+    const { insights } = buildInsights(db, { windowDays: 90, settings: SETTINGS, today });
+    const moodTrend = insights.find(i => (i.type === 'trend' || i.type === 'explained_trend') && i.subject === 'mood');
+    expect(moodTrend).toBeTruthy();
+    const assoc = insights.find(i => i.type === 'association');
+    expect(assoc).toBeTruthy();
+    expect(Array.isArray(assoc.evidence.points)).toBe(true);
+  });
+});
