@@ -160,11 +160,12 @@ export default function Nav({ activePage }: NavProps) {
   const { t } = useT();
   const { settings } = useSettings();
 
-  const [items, setItems]     = useState<NavItem[]>(loadOrder);
-  const [hidden, setHidden]   = useState<Set<PageName>>(loadHidden);
-  const [editing, setEditing] = useState(false);
-  const dragIndex             = useRef<number | null>(null);
-  const dragOverIndex         = useRef<number | null>(null);
+  const [items, setItems]       = useState<NavItem[]>(loadOrder);
+  const [hidden, setHidden]     = useState<Set<PageName>>(loadHidden);
+  const [editing, setEditing]   = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const dragIndex               = useRef<number | null>(null);
+  const dragOverIndex           = useRef<number | null>(null);
 
   const mounted = useRef(false);
   useEffect(() => {
@@ -211,11 +212,14 @@ export default function Nav({ activePage }: NavProps) {
     dragOverIndex.current = null;
   }
 
-  // Group items for rendering (only in normal mode)
-  const groupedItems = GROUPS.map(g => ({
+  // Group items for rendering — exclude 'health' (shown in profile panel)
+  const groupedItems = GROUPS.filter(g => g.id !== 'health').map(g => ({
     ...g,
     items: visibleItems.filter(i => i.group === g.id),
   })).filter(g => g.items.length > 0);
+
+  // Profile panel items (health group, respecting hidden state)
+  const profileItems = visibleItems.filter(i => i.group === 'health');
 
   const calRec = settings.cal_rec || Math.round(((settings.cal_min || 1800) + (settings.cal_max || 2200)) / 2);
 
@@ -351,18 +355,74 @@ export default function Nav({ activePage }: NavProps) {
         )}
       </div>
 
-      {/* Bottom — user info */}
-      <div style={{ padding: '12px 10px 0', borderTop: '1px solid var(--fb-divider)', display: 'flex', alignItems: 'center', gap: 10 }}>
+      {/* Profile panel — collapses above the user strip */}
+      {!editing && profileOpen && profileItems.length > 0 && (
+        <div style={{ borderTop: '1px solid var(--fb-divider)', paddingTop: 8, display: 'flex', flexDirection: 'column', gap: 1 }}>
+          <div style={{
+            fontSize: 9.5, fontWeight: 600, letterSpacing: 1.4, textTransform: 'uppercase',
+            color: 'var(--fb-text-2)', padding: '0 10px 6px',
+          }}>
+            {GROUPS.find(g => g.id === 'health')?.label}
+          </div>
+          {profileItems.map(item => {
+            const isActive = item.page === activePage;
+            return (
+              <button
+                key={item.page}
+                onClick={() => navigate(item.page)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  background: isActive ? 'var(--fb-accent-soft)' : 'transparent',
+                  color: isActive ? 'var(--fb-accent)' : 'var(--fb-text)',
+                  border: 0, borderRadius: 7, padding: '7px 10px',
+                  fontSize: 13, cursor: 'pointer', fontFamily: 'inherit',
+                  textAlign: 'left', width: '100%',
+                  transition: 'background 0.15s ease, color 0.15s ease',
+                }}
+              >
+                <Icon d={ICONS[item.page] ?? ICONS.settings} size={16} />
+                <span>{t(item.labelKey)}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Bottom — user info (click to open/close profile) */}
+      <button
+        onClick={() => setProfileOpen(v => !v)}
+        style={{
+          padding: '12px 10px 0', borderTop: '1px solid var(--fb-divider)',
+          display: 'flex', alignItems: 'center', gap: 10,
+          background: 'transparent', border: 0, cursor: 'pointer',
+          width: '100%', fontFamily: 'inherit', textAlign: 'left',
+        }}
+      >
         <div style={{
-          width: 28, height: 28, borderRadius: '50%', background: 'var(--fb-card-2)',
+          width: 28, height: 28, borderRadius: '50%',
+          background: profileOpen ? 'var(--fb-accent-soft)' : 'var(--fb-card-2)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color: 'var(--fb-text-2)', fontSize: 11, fontWeight: 600, flexShrink: 0,
+          color: profileOpen ? 'var(--fb-accent)' : 'var(--fb-text-2)',
+          fontSize: 11, fontWeight: 600, flexShrink: 0,
+          transition: 'background 0.15s, color 0.15s',
         }}>U</div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 12, fontWeight: 550, color: 'var(--fb-text)' }}>Utente</div>
           <div style={{ fontSize: 10, color: 'var(--fb-text-3)' }}>{calRec > 0 ? `${calRec} kcal` : '—'}</div>
         </div>
-      </div>
+        <svg
+          width="12" height="12" viewBox="0 0 24 24"
+          fill="none" stroke="currentColor" strokeWidth="2.5"
+          strokeLinecap="round" strokeLinejoin="round"
+          style={{
+            color: 'var(--fb-text-3)', flexShrink: 0,
+            transform: profileOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+            transition: 'transform 0.2s',
+          }}
+        >
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      </button>
     </nav>
   );
 }
