@@ -30,12 +30,14 @@ function registerSettingsIpc() {
     checkin_last_evening_date: '',
     tdee_auto_suggest: 1,
     tdee_last_seen_value: 0,
+    user_sex: 'unspecified',
     };
     const stringKeys = new Set(['language', 'theme',
       'notif_meal_breakfast_time', 'notif_meal_lunch_time',
       'notif_meal_dinner_time', 'notif_meal_snack_time',
       'dashboard_widget_order',
-      'checkin_last_morning_date', 'checkin_last_evening_date']);
+      'checkin_last_morning_date', 'checkin_last_evening_date',
+      'user_sex']);
     for (const { key, value } of getDb().prepare('SELECT key, value FROM settings').all()) {
       if (key in defaults) defaults[key] = stringKeys.has(key) ? value : parseFloat(value);
     }

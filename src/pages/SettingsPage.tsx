@@ -76,6 +76,30 @@ export default function SettingsPage() {
     <div className="p-8 max-w-6xl mx-auto space-y-10">
       <h1 className="text-2xl font-bold text-text">{t('nav.settings')}</h1>
 
+      {/* ── Profile ────────────────────────────────────────────────────────── */}
+      <section>
+        <h2 className={sectionTitle}>{t('settings.profileSection')}</h2>
+        <div className="bg-card border border-border rounded-xl p-4">
+          <label className="text-xs text-text-sec block mb-2">{t('settings.sexLabel')}</label>
+          <div className="flex gap-2">
+            {(['male', 'female', 'unspecified'] as const).map(opt => (
+              <button
+                key={opt}
+                onClick={() => updateSettings({ user_sex: opt })}
+                className={[
+                  'flex-1 px-3 py-2 rounded-lg text-sm font-medium border transition-all cursor-pointer',
+                  (settings.user_sex ?? 'unspecified') === opt
+                    ? 'bg-accent/10 text-accent border-accent'
+                    : 'bg-transparent text-text-sec border-border hover:border-accent/50 hover:text-text',
+                ].join(' ')}
+              >
+                {t(`settings.sex.${opt}`)}
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ── Language ───────────────────────────────────────────────────────── */}
       <section>
         <h2 className={sectionTitle}>{t('settings.language')}</h2>

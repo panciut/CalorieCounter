@@ -16,6 +16,7 @@ interface SetupValues {
   calTarget: number;
   exerciseDays: number;
   userName: string;
+  sex: 'male' | 'female' | 'unspecified';
 }
 
 // ── Spring cubic-bezier constant ──────────────────────────────────────────────
@@ -156,6 +157,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
     calTarget: 2000,
     exerciseDays: 3,
     userName: '',
+    sex: 'unspecified',
   });
   const [objError, setObjError] = useState(false);
   const [completing, setCompleting] = useState(false);
@@ -193,12 +195,11 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
     if (completing) return;
     setCompleting(true);
 
-    // Save cal_rec if diet selected
-    if (objectives.has('diet') && setup.calTarget) {
-      try {
-        await window.electronAPI.invoke('settings:save', { cal_rec: setup.calTarget });
-      } catch (_) {}
-    }
+    try {
+      const payload: Record<string, string | number> = { user_sex: setup.sex };
+      if (objectives.has('diet') && setup.calTarget) payload.cal_rec = setup.calTarget;
+      await window.electronAPI.invoke('settings:save', payload);
+    } catch (_) {}
 
     onComplete();
   }
@@ -466,6 +467,31 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                   onChange={v => setSetup(s => ({ ...s, userName: v }))}
                   placeholder={t('onboarding.namePlaceholder')}
                 />
+
+                {/* Sex selector — always shown */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: 1.1, textTransform: 'uppercase', color: 'var(--fb-text-3)' }}>
+                    {t('onboarding.sexLabel')}
+                  </span>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    {(['male', 'female', 'unspecified'] as const).map(opt => (
+                      <button
+                        key={opt}
+                        type="button"
+                        onClick={() => setSetup(s => ({ ...s, sex: opt }))}
+                        style={{
+                          flex: 1, padding: '9px 4px', borderRadius: 10,
+                          border: `1.5px solid ${setup.sex === opt ? 'var(--fb-amber)' : 'var(--fb-border)'}`,
+                          background: setup.sex === opt ? 'color-mix(in srgb, var(--fb-amber) 12%, var(--fb-card))' : 'var(--fb-card)',
+                          color: setup.sex === opt ? 'var(--fb-amber)' : 'var(--fb-text-2)',
+                          fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                        }}
+                      >
+                        {t(`onboarding.sex.${opt}`)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
                 {objectives.has('sleep') && (
                   <LabeledInput

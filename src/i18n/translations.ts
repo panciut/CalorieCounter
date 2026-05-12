@@ -882,6 +882,16 @@ export const translations: Record<'en' | 'it', TranslationMap> = {
     'checkin.settings.evening':          'Evening recap',
     'checkin.settings.eveningDesc':      'An end-of-day summary after 6pm',
 
+    'onboarding.sexLabel':              'Biological sex (for body figure)',
+    'onboarding.sex.male':              'Male',
+    'onboarding.sex.female':            'Female',
+    'onboarding.sex.unspecified':       'Prefer not to say',
+    'settings.profileSection':          'Profile',
+    'settings.sexLabel':                'Biological sex',
+    'settings.sex.male':                'Male',
+    'settings.sex.female':              'Female',
+    'settings.sex.unspecified':         'Prefer not to say',
+
     'insights.reliability.precise':  'Accurate',
     'insights.reliability.approx':   'Rough',
     'insights.reliability.none':     'Not logged',
@@ -1810,6 +1820,16 @@ export const translations: Record<'en' | 'it', TranslationMap> = {
     'checkin.settings.morningDesc':      'Una schermata rapida al primo avvio di ogni giorno (peso, mood, abitudini, task urgenti)',
     'checkin.settings.evening':          'Recap serale',
     'checkin.settings.eveningDesc':      'Un riepilogo di fine giornata dopo le 18:00',
+
+    'onboarding.sexLabel':              'Sesso biologico (per la figura corporea)',
+    'onboarding.sex.male':              'Uomo',
+    'onboarding.sex.female':            'Donna',
+    'onboarding.sex.unspecified':       'Preferisco non dirlo',
+    'settings.profileSection':          'Profilo',
+    'settings.sexLabel':                'Sesso biologico',
+    'settings.sex.male':                'Uomo',
+    'settings.sex.female':              'Donna',
+    'settings.sex.unspecified':         'Preferisco non dirlo',
 
     'insights.reliability.precise':  'Preciso',
     'insights.reliability.approx':   'Approssimativo',

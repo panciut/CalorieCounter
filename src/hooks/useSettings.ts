@@ -33,6 +33,7 @@ const DEFAULT_SETTINGS: Settings = {
   checkin_last_evening_date: '',
   tdee_auto_suggest: 1,
   tdee_last_seen_value: 0,
+  user_sex: 'unspecified',
 };
 
 // ── Context ───────────────────────────────────────────────────────────────────

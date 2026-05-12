@@ -312,6 +312,7 @@ export interface Settings {
   checkin_last_evening_date?: string;
   tdee_auto_suggest?: number;
   tdee_last_seen_value?: number;
+  user_sex?: 'male' | 'female' | 'unspecified';
 }
 
 export interface MealSuggestion {
