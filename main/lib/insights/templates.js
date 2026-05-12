@@ -19,7 +19,7 @@ const LABELS = {
     weight: 'weight',
     lastMealHour: 'last meal time',
     workoutDone: 'workout', workoutMin: 'workout minutes',
-    habitPct: 'habits', taskCompletionPct: 'tasks done',
+    habitPct: 'habit completion', taskCompletionPct: 'tasks done',
     focusMin: 'focus sessions', focusDone: 'focus sessions', waterMl: 'water', steps: 'steps',
     perceivedEffort: 'perceived effort',
   },
@@ -90,15 +90,24 @@ function renderInsight(raw, lang = 'it') {
   } else if (raw.kind === 'trend') {
     const { metric, direction, slopePerDay, n } = raw;
     const metricLabel = labels[metric] ?? metric;
-    const directionText = direction === 'up'
-      ? lang === 'it' ? 'in miglioramento' : 'improving'
-      : lang === 'it' ? 'in peggioramento' : 'declining';
-    const slopeText = fmt(Math.abs(slopePerDay * 7), lang);
-    const signPrefix = direction === 'up' ? '+' : '-';
-    if (lang === 'it') {
-      text = `Il tuo ${metricLabel} è ${directionText} nelle ultime 3 settimane (${signPrefix}${slopeText} per settimana).`;
+
+    // sleepDebt has no slopePerDay/direction — render as accumulated debt
+    if (metric === 'sleepDebt') {
+      const debtH = Math.round((raw.totalDebtMin ?? 0) / 60);
+      text = lang === 'it'
+        ? `Hai accumulato circa ${debtH}h di debito di sonno nelle ultime 3 settimane.`
+        : `You've accumulated about ${debtH}h of sleep debt over the last 3 weeks.`;
     } else {
-      text = `Your ${metricLabel} is ${directionText} over the last 3 weeks (${signPrefix}${slopeText} per week).`;
+      const directionText = direction === 'up'
+        ? lang === 'it' ? 'in miglioramento' : 'improving'
+        : lang === 'it' ? 'in peggioramento' : 'declining';
+      const slopeText = fmt(Math.abs(slopePerDay * 7), lang);
+      const signPrefix = direction === 'up' ? '+' : '-';
+      if (lang === 'it') {
+        text = `Il tuo ${metricLabel} è ${directionText} nelle ultime 3 settimane (${signPrefix}${slopeText} per settimana).`;
+      } else {
+        text = `Your ${metricLabel} is ${directionText} over the last 3 weeks (${signPrefix}${slopeText} per week).`;
+      }
     }
 
   } else if (raw.kind === 'explained_trend') {

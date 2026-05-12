@@ -18,6 +18,11 @@ const MODULE_KEYS: Record<string, string> = {
   workouts: 'insights.module.workouts',
   energy:   'insights.module.energy',
   water:    'insights.module.water',
+  sleep:    'insights.module.sleep',
+  habits:   'insights.module.habits',
+  tasks:    'insights.module.tasks',
+  focus:    'insights.module.focus',
+  mood:     'insights.module.mood',
 };
 
 // ── Milestone strip ───────────────────────────────────────────────────────────
