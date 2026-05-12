@@ -27,6 +27,12 @@ const DEFAULT_SETTINGS: Settings = {
   insights_fdr_q: 0.10,
   insights_sleep_target_min: 480,
   insights_window_days: 90,
+  checkin_morning_enabled: 1,
+  checkin_evening_enabled: 0,
+  checkin_last_morning_date: '',
+  checkin_last_evening_date: '',
+  tdee_auto_suggest: 1,
+  tdee_last_seen_value: 0,
 };
 
 // ── Context ───────────────────────────────────────────────────────────────────

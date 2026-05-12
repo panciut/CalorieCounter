@@ -436,6 +436,54 @@ export default function SettingsPage() {
         </div>
       </section>
 
+      {/* ── Check-in giornaliero ───────────────────────────────────────────── */}
+      <section>
+        <h2 className={sectionTitle}>{t('checkin.settings.section')}</h2>
+        <div className="bg-card border border-border rounded-xl p-4 space-y-4">
+
+          {/* Morning */}
+          <div className="flex flex-col gap-1">
+            <label className="flex items-center gap-3 cursor-pointer">
+              <div
+                onClick={() => updateSettings({ checkin_morning_enabled: settings.checkin_morning_enabled === 0 ? 1 : 0 })}
+                className={[
+                  'w-10 h-6 rounded-full transition-colors cursor-pointer flex items-center shrink-0',
+                  settings.checkin_morning_enabled !== 0 ? 'bg-accent' : 'bg-border',
+                ].join(' ')}
+              >
+                <div className={[
+                  'w-5 h-5 rounded-full bg-white shadow transition-transform mx-0.5',
+                  settings.checkin_morning_enabled !== 0 ? 'translate-x-4' : 'translate-x-0',
+                ].join(' ')} />
+              </div>
+              <span className="text-sm text-text">{t('checkin.settings.morning')}</span>
+            </label>
+            <p className="text-xs text-text-sec ml-13">{t('checkin.settings.morningDesc')}</p>
+          </div>
+
+          {/* Evening */}
+          <div className="flex flex-col gap-1">
+            <label className="flex items-center gap-3 cursor-pointer">
+              <div
+                onClick={() => updateSettings({ checkin_evening_enabled: settings.checkin_evening_enabled === 1 ? 0 : 1 })}
+                className={[
+                  'w-10 h-6 rounded-full transition-colors cursor-pointer flex items-center shrink-0',
+                  settings.checkin_evening_enabled === 1 ? 'bg-accent' : 'bg-border',
+                ].join(' ')}
+              >
+                <div className={[
+                  'w-5 h-5 rounded-full bg-white shadow transition-transform mx-0.5',
+                  settings.checkin_evening_enabled === 1 ? 'translate-x-4' : 'translate-x-0',
+                ].join(' ')} />
+              </div>
+              <span className="text-sm text-text">{t('checkin.settings.evening')}</span>
+            </label>
+            <p className="text-xs text-text-sec ml-13">{t('checkin.settings.eveningDesc')}</p>
+          </div>
+
+        </div>
+      </section>
+
       {/* ── Apple Health ───────────────────────────────────────────────────── */}
       <section>
         <h2 className={sectionTitle}>Apple Health</h2>

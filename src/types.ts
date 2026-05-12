@@ -306,6 +306,12 @@ export interface Settings {
   insights_fdr_q?: number;
   insights_sleep_target_min?: number;
   insights_window_days?: number;
+  checkin_morning_enabled?: number;
+  checkin_evening_enabled?: number;
+  checkin_last_morning_date?: string;
+  checkin_last_evening_date?: string;
+  tdee_auto_suggest?: number;
+  tdee_last_seen_value?: number;
 }
 
 export interface MealSuggestion {

@@ -37,13 +37,14 @@ import WorkoutCard from '../components/dashboard/WorkoutCard';
 import ReliabilityPill from '../components/dashboard/ReliabilityPill';
 import InsightCard from '../components/dashboard/InsightCard';
 import MealSuggestionCard from '../components/dashboard/MealSuggestionCard';
+import AdaptiveTdeeCard from '../components/dashboard/AdaptiveTdeeCard';
 import DeductionEventModal from '../components/DeductionEventModal';
 import {
   MEAL_ORDER,
   type LogEntry, type Food, type Recipe, type RecipeIngredient, type Meal,
   type WaterEntry, type SupplementDay, type FrequentFood, type WeightEntry,
   type DailyEnergy, type Exercise,
-  type MealSuggestion, type MealSuggestionsResult,
+  type MealSuggestion, type MealSuggestionsResult, type TDEEResult,
 } from '../types';
 import { useDeductionEvents } from '../hooks/useDeductionEvents';
 
@@ -129,7 +130,7 @@ interface DashboardPageProps {
 }
 
 export default function DashboardPage({ initialDate, fromWeek }: DashboardPageProps = {}) {
-  const { settings } = useSettings();
+  const { settings, invalidate } = useSettings();
   const { t } = useT();
   const { showToast } = useToast();
   const { navigate } = useNavigate();
@@ -181,9 +182,10 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
   const [confirmAllOpen, setConfirmAllOpen] = useState(false);
 
   // ── Widget reorder (drag-and-drop) ────────────────────────────────────────
-  const DEFAULT_WIDGET_ORDER = ['gamification','hero','tasks_habits','diary','meal_suggest','lifestyle','workout','insights','secondary','collapsibles'];
+  const DEFAULT_WIDGET_ORDER = ['gamification','hero','adaptive_tdee','tasks_habits','diary','meal_suggest','lifestyle','workout','insights','secondary','collapsibles'];
   const [widgetOrder, setWidgetOrder] = useState<string[]>(DEFAULT_WIDGET_ORDER);
   const [mealSuggest, setMealSuggest] = useState<MealSuggestionsResult | null>(null);
+  const [tdeeResult, setTdeeResult] = useState<TDEEResult | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
 
@@ -236,6 +238,7 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
     setFrequent(freq);
     // Non-blocking: meal suggestions depend on consumed kcal and pantry state
     api.meals.getSuggestions().then(setMealSuggest).catch(() => {});
+    api.goals.calculateTDEE().then(setTdeeResult).catch(() => {});
   }, [dateStr]);
 
   useEffect(() => {
@@ -444,6 +447,17 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
     showToast(t('dash.quickLogToast', { name: s.name, grams: s.suggestedGrams }), 'success');
     if (result.events?.length) pushDeduction(result.events);
     load();
+  }
+
+  async function applyTdee(tdee: number) {
+    await api.settings.save({ cal_rec: tdee, cal_min: Math.round(tdee * 0.9), cal_max: Math.round(tdee * 1.1), tdee_last_seen_value: tdee });
+    invalidate();
+    showToast(t('dash.tdee.applied'), 'success');
+  }
+
+  async function dismissTdee(tdee: number) {
+    await api.settings.save({ tdee_last_seen_value: tdee });
+    invalidate();
   }
 
   // ── Derived values ────────────────────────────────────────────────────────────
@@ -744,6 +758,17 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
                     onCopyDay={handleCopyDay}
                   />
                 </div>
+              </DragSection>
+            );
+            if (wid === 'adaptive_tdee') return (
+              <DragSection key={wid} {...dragProps}>
+                <AdaptiveTdeeCard
+                  result={tdeeResult}
+                  calRec={TG.cal.rec}
+                  onApply={applyTdee}
+                  onDismiss={dismissTdee}
+                  onNavigateGoals={() => navigate('goals')}
+                />
               </DragSection>
             );
             if (wid === 'meal_suggest') return (

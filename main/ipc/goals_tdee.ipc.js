@@ -27,10 +27,18 @@ function registerGoalsTdeeIpc() {
 
     let tdee = avgCal;
     if (weightData.length >= 2) {
-      const weightChange = weightData[weightData.length - 1].weight - weightData[0].weight;
-      const daySpan = logData.length;
-      // 7700 kcal ≈ 1 kg of fat; distribute daily correction
-      tdee = avgCal - (weightChange * 7700 / daySpan);
+      // Linear regression slope (kg/day) is more robust than endpoint delta
+      const n = weightData.length;
+      const meanT = (n - 1) / 2;
+      const meanW = weightData.reduce((s, d) => s + d.weight, 0) / n;
+      let cov = 0, varT = 0;
+      for (let i = 0; i < n; i++) {
+        cov  += (i - meanT) * (weightData[i].weight - meanW);
+        varT += (i - meanT) ** 2;
+      }
+      // t is array index, not actual date delta — acceptable naïve approximation
+      const slopeKgPerDay = varT === 0 ? 0 : cov / varT;
+      tdee = avgCal - slopeKgPerDay * 7700;
     }
 
     return {

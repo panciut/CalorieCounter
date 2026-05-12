@@ -24,11 +24,18 @@ function registerSettingsIpc() {
     notif_meal_dinner_time: '20:00',
     notif_meal_snack_time: '16:00',
     dashboard_widget_order: '',
+    checkin_morning_enabled: 1,
+    checkin_evening_enabled: 0,
+    checkin_last_morning_date: '',
+    checkin_last_evening_date: '',
+    tdee_auto_suggest: 1,
+    tdee_last_seen_value: 0,
     };
     const stringKeys = new Set(['language', 'theme',
       'notif_meal_breakfast_time', 'notif_meal_lunch_time',
       'notif_meal_dinner_time', 'notif_meal_snack_time',
-      'dashboard_widget_order']);
+      'dashboard_widget_order',
+      'checkin_last_morning_date', 'checkin_last_evening_date']);
     for (const { key, value } of getDb().prepare('SELECT key, value FROM settings').all()) {
       if (key in defaults) defaults[key] = stringKeys.has(key) ? value : parseFloat(value);
     }

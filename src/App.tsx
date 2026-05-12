@@ -1,5 +1,6 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useState } from 'react';
 import { api } from './api';
+import { today } from './lib/dateUtil';
 import { SettingsProvider, useSettings } from './hooks/useSettings';
 import { NavigationProvider, useNavigate } from './hooks/useNavigate';
 import { ToastProvider, useToast } from './components/Toast';
@@ -34,17 +35,22 @@ import InsightsPage from './pages/InsightsPage';
 
 import Nav from './components/Nav';
 import Onboarding from './components/Onboarding';
+import MorningCheckin from './components/MorningCheckin';
+import EveningCheckin from './components/EveningCheckin';
 
 // ── Inner app (has access to contexts) ───────────────────────────────────────
 
 function AppInner() {
-  const { settings, loading } = useSettings();
+  const { settings, loading, updateSettings } = useSettings();
   const { page, param, navigate } = useNavigate();
   const { showToast } = useToast();
   const { t } = useT();
   const showAchievements = useAchievementToast();
 
   useUndo(showToast, t('undo.undone'));
+
+  const [checkinDone, setCheckinDone] = useState<{ morning: boolean; evening: boolean }>({ morning: false, evening: false });
+  const todayStr = today();
 
   // Sync theme to body class
   useEffect(() => {
@@ -70,6 +76,30 @@ function AppInner() {
   if (!loading && settings.onboarding_complete !== 1) {
     return <Onboarding onComplete={handleOnboardingComplete} />;
   }
+
+  const showMorning = !loading && settings.onboarding_complete === 1
+    && settings.checkin_morning_enabled !== 0
+    && settings.checkin_last_morning_date !== todayStr
+    && !checkinDone.morning;
+
+  const showEvening = !loading && settings.onboarding_complete === 1
+    && settings.checkin_evening_enabled === 1
+    && settings.checkin_last_evening_date !== todayStr
+    && !checkinDone.evening
+    && new Date().getHours() >= 18;
+
+  if (showMorning) return (
+    <MorningCheckin onDone={() => {
+      updateSettings({ checkin_last_morning_date: todayStr });
+      setCheckinDone(d => ({ ...d, morning: true }));
+    }} />
+  );
+  if (showEvening) return (
+    <EveningCheckin onDone={() => {
+      updateSettings({ checkin_last_evening_date: todayStr });
+      setCheckinDone(d => ({ ...d, evening: true }));
+    }} />
+  );
 
   return (
     <div className="flex h-screen overflow-hidden bg-bg text-text">
