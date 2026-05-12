@@ -1,7 +1,3 @@
-// SP1 intentional deferrals:
-// - Raw scatter points not returned by backend → contrast shown as 2-bar chart (highMean vs lowMean)
-// - Milestone insights not surfaced (no milestone generation in SP1)
-// - dataVersion memo cache skipped (computation is cheap enough for now)
 import { useEffect, useState } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -11,7 +7,7 @@ import {
 import { api } from '../api';
 import { useT } from '../i18n/useT';
 import { fbCard, fbEyebrow } from '../lib/fbStyles';
-import type { InsightsResult, Insight, InsightContrast } from '../types';
+import type { InsightsResult, Insight, InsightContrast, ExplainedTrendFactor } from '../types';
 import { InsightLine } from '../components/InsightLine';
 
 // ── Module label map ──────────────────────────────────────────────────────────
@@ -23,6 +19,176 @@ const MODULE_KEYS: Record<string, string> = {
   energy:   'insights.module.energy',
   water:    'insights.module.water',
 };
+
+// ── Milestone strip ───────────────────────────────────────────────────────────
+
+function MilestoneStrip({ insights }: { insights: Insight[] }) {
+  const [expanded, setExpanded] = useState(false);
+  const milestones = insights.filter(i => i.type === 'milestone');
+  if (milestones.length === 0) return null;
+  const visible = expanded ? milestones : milestones.slice(0, 3);
+  return (
+    <div style={{
+      background: 'rgba(22,163,74,0.08)',
+      border: '1px solid rgba(22,163,74,0.25)',
+      borderRadius: 10, padding: '10px 14px', marginBottom: 20,
+      display: 'flex', flexDirection: 'column', gap: 6,
+    }}>
+      {visible.map(m => (
+        <div key={m.id} style={{ fontSize: 13, color: 'var(--fb-text)', fontWeight: 500 }}>
+          {m.text}
+        </div>
+      ))}
+      {milestones.length > 3 && (
+        <button
+          type="button"
+          onClick={() => setExpanded(e => !e)}
+          style={{ fontSize: 11, color: '#16a34a', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', padding: 0, marginTop: 2 }}
+        >
+          {expanded ? '▲ meno' : `▼ altri ${milestones.length - 3}`}
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ── Factor scatter chart (raw points) ────────────────────────────────────────
+
+function FactorScatterChart({ points, cutoffValue }: {
+  points: { x: number; y: number }[];
+  cutoffValue?: number;
+}) {
+  if (!points || points.length < 3) return null;
+  return (
+    <ResponsiveContainer width="100%" height={90}>
+      <ScatterChart margin={{ top: 4, right: 4, bottom: 4, left: 0 }}>
+        <XAxis dataKey="x" type="number" tick={{ fontSize: 9 }} />
+        <YAxis dataKey="y" type="number" tick={{ fontSize: 9 }} width={24} />
+        <Tooltip
+          cursor={{ strokeDasharray: '3 3' }}
+          content={({ payload }) => {
+            if (!payload?.length) return null;
+            const d = payload[0]?.payload as { x: number; y: number };
+            return (
+              <div style={{ background: 'var(--fb-card)', border: '1px solid var(--fb-border)', borderRadius: 6, padding: '4px 8px', fontSize: 10 }}>
+                {d?.x?.toFixed(1)} → {d?.y?.toFixed(1)}
+              </div>
+            );
+          }}
+        />
+        {cutoffValue != null && (
+          <ReferenceLine x={cutoffValue} stroke="var(--fb-accent)" strokeDasharray="3 2" strokeOpacity={0.7} />
+        )}
+        <Scatter data={points} fill="#6366f1" fillOpacity={0.5} />
+      </ScatterChart>
+    </ResponsiveContainer>
+  );
+}
+
+// ── Explained trend card ──────────────────────────────────────────────────────
+
+function ExplainedTrendCard({ insight }: { insight: Insight }) {
+  const [showCauses, setShowCauses] = useState(true);
+  const [showEffects, setShowEffects] = useState(true);
+  const causalFactors: ExplainedTrendFactor[] = insight.evidence.causalFactors ?? [];
+  const downstreamEffects: ExplainedTrendFactor[] = insight.evidence.downstreamEffects ?? [];
+  const headerText = insight.text.split('\n\n')[0];
+
+  const rowStyle: React.CSSProperties = {
+    padding: '6px 0', borderBottom: '1px solid var(--fb-border)',
+    fontSize: 12, color: 'var(--fb-text)',
+  };
+  const labelStyle: React.CSSProperties = {
+    fontWeight: 600, color: 'var(--fb-accent)', marginRight: 4,
+  };
+
+  return (
+    <div style={{
+      ...fbCard,
+      borderLeft: '3px solid var(--fb-accent)',
+      display: 'flex', flexDirection: 'column', gap: 10,
+      marginBottom: 12,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+        <div style={{ flex: 1, fontSize: 14, color: 'var(--fb-text)', lineHeight: 1.5 }}>
+          {headerText}
+        </div>
+        <ConfidenceBadge level={insight.confidence} />
+      </div>
+
+      {causalFactors.length > 0 && (
+        <div>
+          <button
+            type="button"
+            onClick={() => setShowCauses(v => !v)}
+            style={{
+              fontSize: 11, fontWeight: 600, letterSpacing: 0.6, textTransform: 'uppercase',
+              color: 'var(--fb-text-2)', background: 'none', border: 'none', cursor: 'pointer',
+              padding: '2px 0', display: 'flex', alignItems: 'center', gap: 4,
+            }}
+          >
+            {showCauses ? '▾' : '▸'} Possibili cause ({causalFactors.length})
+          </button>
+          {showCauses && (
+            <div style={{ paddingLeft: 8, marginTop: 6 }}>
+              {causalFactors.map((f, i) => (
+                <div key={i} style={i < causalFactors.length - 1 ? rowStyle : { ...rowStyle, borderBottom: 'none' }}>
+                  <span style={labelStyle}>{f.predictor}</span>
+                  {f.lag > 0 && <span style={{ fontSize: 10, color: 'var(--fb-text-3)', marginRight: 4 }}>(ieri)</span>}
+                  → <span style={{ marginLeft: 4 }}>{f.outcome}</span>
+                  <span style={{ color: 'var(--fb-text-2)', marginLeft: 8 }}>
+                    med. {f.highMean.toFixed(1)} vs {f.lowMean.toFixed(1)}
+                  </span>
+                  <span style={{ color: 'var(--fb-text-3)', marginLeft: 8, fontSize: 10 }}>
+                    ({f.n} gg, {Math.abs(f.stat) >= 0.5 ? 'forte' : 'moderata'})
+                  </span>
+                  {f.points && f.points.length >= 3 && (
+                    <div style={{ marginTop: 4 }}>
+                      <FactorScatterChart points={f.points} cutoffValue={undefined} />
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {downstreamEffects.length > 0 && (
+        <div>
+          <button
+            type="button"
+            onClick={() => setShowEffects(v => !v)}
+            style={{
+              fontSize: 11, fontWeight: 600, letterSpacing: 0.6, textTransform: 'uppercase',
+              color: 'var(--fb-text-2)', background: 'none', border: 'none', cursor: 'pointer',
+              padding: '2px 0', display: 'flex', alignItems: 'center', gap: 4,
+            }}
+          >
+            {showEffects ? '▾' : '▸'} Possibili effetti ({downstreamEffects.length})
+          </button>
+          {showEffects && (
+            <div style={{ paddingLeft: 8, marginTop: 6 }}>
+              {downstreamEffects.map((e, i) => (
+                <div key={i} style={i < downstreamEffects.length - 1 ? rowStyle : { ...rowStyle, borderBottom: 'none' }}>
+                  <span style={labelStyle}>{e.predictor}</span>
+                  {e.lag > 0 && <span style={{ fontSize: 10, color: 'var(--fb-text-3)', marginRight: 4 }}>(ieri)</span>}
+                  → <span style={{ marginLeft: 4 }}>{e.outcome}</span>
+                  <span style={{ color: 'var(--fb-text-2)', marginLeft: 8 }}>
+                    med. {e.highMean.toFixed(1)} vs {e.lowMean.toFixed(1)}
+                  </span>
+                  <span style={{ color: 'var(--fb-text-3)', marginLeft: 8, fontSize: 10 }}>
+                    ({e.n} gg, {Math.abs(e.stat) >= 0.5 ? 'forte' : 'moderata'})
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ── Confidence badge ──────────────────────────────────────────────────────────
 
@@ -65,12 +231,41 @@ function ContrastChart({ contrast }: { contrast: InsightContrast }) {
   );
 }
 
+// ── Lag section (ieri → oggi) ────────────────────────────────────────────────
+
+function LagSection({ insights }: { insights: Insight[] }) {
+  const [open, setOpen] = useState(true);
+  const lagInsights = insights.filter(i => i.type === 'association' && (i.evidence.lag ?? 0) > 0);
+  if (lagInsights.length === 0) return null;
+  return (
+    <div style={{ marginBottom: 28 }}>
+      <button
+        type="button"
+        onClick={() => setOpen(v => !v)}
+        style={{
+          ...fbEyebrow as React.CSSProperties,
+          marginBottom: open ? 10 : 0,
+          borderBottom: '1px solid var(--fb-divider)',
+          paddingBottom: 6,
+          background: 'none', border: 'none',
+          cursor: 'pointer', width: '100%', textAlign: 'left',
+          display: 'flex', alignItems: 'center', gap: 6,
+        }}
+      >
+        {open ? '▾' : '▸'} RELAZIONI TEMPORALI (IERI → OGGI)
+      </button>
+      {open && lagInsights.map(ins => <InsightRow key={ins.id} insight={ins} />)}
+    </div>
+  );
+}
+
 // ── Single insight row ────────────────────────────────────────────────────────
 
 function InsightRow({ insight }: { insight: Insight }) {
   const contrast = insight.type === 'association'
     ? (insight.evidence.contrast ?? null)
     : null;
+  const points = insight.evidence.points;
 
   return (
     <div style={{
@@ -86,7 +281,10 @@ function InsightRow({ insight }: { insight: Insight }) {
       </div>
       {contrast && (
         <div style={{ paddingLeft: 16 }}>
-          <ContrastChart contrast={contrast} />
+          {points && points.length >= 3
+            ? <FactorScatterChart points={points} cutoffValue={contrast.cutoff} />
+            : <ContrastChart contrast={contrast} />
+          }
         </div>
       )}
     </div>
@@ -201,7 +399,7 @@ export default function InsightsPage() {
           {data.insights.length > 0 && (() => {
             const TYPE_COLORS: Record<string, string> = {
               association: '#6366f1', trend: '#10b981', anomaly: '#f59e0b',
-              factor: '#ec4899', milestone: '#8b5cf6',
+              factor: '#ec4899', milestone: '#8b5cf6', explained_trend: '#10b981',
             };
             const counts: Record<string, number> = {};
             for (const ins of data.insights) {
@@ -306,8 +504,26 @@ export default function InsightsPage() {
         </div>
       )}
 
-      {/* Grouped insights */}
+      {/* Milestone strip */}
+      {!loading && !err && data && <MilestoneStrip insights={data.insights} />}
+
+      {/* Explained trend cards */}
+      {!loading && !err && data && data.insights
+        .filter(i => i.type === 'explained_trend')
+        .map(ins => <ExplainedTrendCard key={ins.id} insight={ins} />)
+      }
+
+      {/* Lag section */}
+      {!loading && !err && data && <LagSection insights={data.insights} />}
+
+      {/* Grouped insights (excludes milestone, explained_trend, and lag associations) */}
       {!loading && !err && groups.map(({ moduleKey, items }) => {
+        const filtered = items.filter(i =>
+          i.type !== 'milestone' &&
+          i.type !== 'explained_trend' &&
+          !(i.type === 'association' && (i.evidence.lag ?? 0) > 0)
+        );
+        if (filtered.length === 0) return null;
         const labelKey = MODULE_KEYS[moduleKey] ?? 'insights.module.other';
         return (
           <div key={moduleKey} style={{ marginBottom: 28 }}>
@@ -317,7 +533,7 @@ export default function InsightsPage() {
             }}>
               {t(labelKey)}
             </div>
-            {items.map(ins => <InsightRow key={ins.id} insight={ins} />)}
+            {filtered.map(ins => <InsightRow key={ins.id} insight={ins} />)}
           </div>
         );
       })}
