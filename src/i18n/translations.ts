@@ -602,6 +602,7 @@ export const translations: Record<'en' | 'it', TranslationMap> = {
     'workouts.muscleMap.window7':   '7d',
     'workouts.muscleMap.window14':  '14d',
     'workouts.muscleMap.window30':  '30d',
+    'workouts.muscleMap.tapHint':   'Tap a muscle for details',
 
     'equip.barbell':        'Barbell',
     'equip.dumbbell':       'Dumbbell',
@@ -1557,6 +1558,7 @@ export const translations: Record<'en' | 'it', TranslationMap> = {
     'workouts.muscleMap.window7':   '7g',
     'workouts.muscleMap.window14':  '14g',
     'workouts.muscleMap.window30':  '30g',
+    'workouts.muscleMap.tapHint':   'Tocca un muscolo per i dettagli',
 
     'equip.barbell':        'Bilanciere',
     'equip.dumbbell':       'Manubrio',
