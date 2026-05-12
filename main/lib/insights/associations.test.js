@@ -53,4 +53,23 @@ describe('findAssociations', () => {
     expect(res.find(r => r.x === 'kcalBalance')).toBeUndefined();
     expect(res.find(r => r.nutrition === true)).toBeUndefined();
   });
+
+  it('includes raw points array in output', () => {
+    const rng = mulberry32(99);
+    const facts = makeFacts(60, i => {
+      const sleepMin = 360 + Math.round(rng() * 180);
+      const noise = (rng() - 0.5);
+      const mood = Math.max(1, Math.min(5, Math.round(1 + (sleepMin - 360) / 180 * 4 + noise)));
+      return { sleepMin, mood, energy: 3, stress: 3, sleepQuality: 3 };
+    });
+    const res = findAssociations(facts, SETTINGS);
+    const sm = res.find(r => r.x === 'sleepMin' && r.y === 'mood');
+    expect(sm).toBeTruthy();
+    expect(Array.isArray(sm.points)).toBe(true);
+    expect(sm.points.length).toBeGreaterThan(0);
+    expect(sm.points[0]).toHaveProperty('x');
+    expect(sm.points[0]).toHaveProperty('y');
+    expect(typeof sm.points[0].x).toBe('number');
+    expect(typeof sm.points[0].y).toBe('number');
+  });
 });

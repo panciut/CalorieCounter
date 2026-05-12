@@ -64,6 +64,7 @@ function findAssociations(facts, settings) {
       nutrition: c.p.nutrition, reliabilityBasis: c.reliabilityBasis,
       weekendControlled: { stat: c.ctrlStat, pValue: c.ctrlP, survived: !!ctrlSurvived[i] },
       contrast,
+      points: c.x.map((v, i) => ({ x: v, y: c.y[i] })),
     });
   });
   // keep strongest lag per (x,y)
