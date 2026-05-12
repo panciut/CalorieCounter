@@ -23,6 +23,7 @@ const MODULE_KEYS: Record<string, string> = {
   tasks:    'insights.module.tasks',
   focus:    'insights.module.focus',
   mood:     'insights.module.mood',
+  journal:  'insights.module.journal',
 };
 
 // ── Milestone strip ───────────────────────────────────────────────────────────

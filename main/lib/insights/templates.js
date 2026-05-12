@@ -19,7 +19,7 @@ const LABELS = {
     weight: 'weight',
     lastMealHour: 'last meal time',
     workoutDone: 'workout', workoutMin: 'workout minutes',
-    habitPct: 'habit completion', taskCompletionPct: 'tasks done',
+    habitPct: 'habit completion', taskCompletionPct: 'task completion',
     focusMin: 'focus sessions', focusDone: 'focus sessions', waterMl: 'water', steps: 'steps',
     perceivedEffort: 'perceived effort',
   },
