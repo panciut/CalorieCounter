@@ -69,6 +69,10 @@ export default function MacroBreakdownTooltip({ id, label, actual, planned = 0, 
 
   const fmt = (n: number) => `${Math.round(n * 10) / 10}${unit}`;
 
+  const kcalPerG = id === 'protein' || id === 'carbs' ? 4 : id === 'fat' ? 9 : 0;
+  const actualKcal  = kcalPerG ? Math.round(actual  * kcalPerG) : 0;
+  const plannedKcal = kcalPerG ? Math.round(planned * kcalPerG) : 0;
+
   return createPortal(
     <div
       ref={ref}
@@ -77,7 +81,14 @@ export default function MacroBreakdownTooltip({ id, label, actual, planned = 0, 
     >
       <div className="font-semibold text-text mb-2">
         {label} — {fmt(actual)}
-        {planned > 0 && <span className="text-accent ml-1">+{fmt(planned)} planned</span>}
+        {kcalPerG > 0 && <span className="text-text-sec font-normal ml-1">· {actualKcal} kcal</span>}
+        {planned > 0 && (
+          <span className="text-accent ml-1">
+            +{fmt(planned)}
+            {kcalPerG > 0 && <span className="text-accent/70"> · {plannedKcal} kcal</span>}
+            {' '}planned
+          </span>
+        )}
       </div>
 
       {byMeal.length > 0 && (

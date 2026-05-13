@@ -61,9 +61,13 @@ export function calcMacroRanges(weightKg: number, calories: number): MacroRanges
   const fat_max = Math.round(calories * 0.33 / 9);
   const fat_rec = Math.round(Math.max(weightKg * 0.7, calories * 0.28 / 9));
 
-  const carbs_max = Math.max(0, Math.round((calories - protein_min * 4 - fat_min * 9) / 4));
-  const carbs_min = Math.max(0, Math.round((calories - protein_max * 4 - fat_max * 9) / 4));
+  // Carbs rec is the residual at recommended protein/fat, so the rec row sums
+  // exactly to the calorie target. Min/max form a 35%–60%-of-kcal band, then
+  // clamped so the rec stays inside — which also guarantees a feasible
+  // (P, C, F) combination exists at the min and max corners.
   const carbs_rec = Math.max(0, Math.round((calories - protein_rec * 4 - fat_rec * 9) / 4));
+  const carbs_min = Math.max(0, Math.min(Math.round(calories * 0.35 / 4), carbs_rec));
+  const carbs_max = Math.max(Math.round(calories * 0.60 / 4), carbs_rec);
 
   return {
     protein_min, protein_max, protein_rec,
