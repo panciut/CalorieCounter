@@ -77,7 +77,7 @@ function FactorScatterChart({ points, cutoffValue }: {
             const d = payload[0]?.payload as { x: number; y: number };
             return (
               <div style={{ background: 'var(--fb-card)', border: '1px solid var(--fb-border)', borderRadius: 6, padding: '4px 8px', fontSize: 10 }}>
-                {d?.x?.toFixed(1)} → {d?.y?.toFixed(1)}
+                {d?.x?.toFixed(2)} → {d?.y?.toFixed(2)}
               </div>
             );
           }}
@@ -143,7 +143,7 @@ function ExplainedTrendCard({ insight }: { insight: Insight }) {
                   {f.lag > 0 && <span style={{ fontSize: 10, color: 'var(--fb-text-3)', marginRight: 4 }}>(ieri)</span>}
                   → <span style={{ marginLeft: 4 }}>{f.outcome}</span>
                   <span style={{ color: 'var(--fb-text-2)', marginLeft: 8 }}>
-                    med. {f.highMean.toFixed(1)} vs {f.lowMean.toFixed(1)}
+                    med. {f.highMean.toFixed(2)} vs {f.lowMean.toFixed(2)}
                   </span>
                   <span style={{ color: 'var(--fb-text-3)', marginLeft: 8, fontSize: 10 }}>
                     ({f.n} gg, {Math.abs(f.stat) >= 0.5 ? 'forte' : 'moderata'})
@@ -181,7 +181,7 @@ function ExplainedTrendCard({ insight }: { insight: Insight }) {
                   {e.lag > 0 && <span style={{ fontSize: 10, color: 'var(--fb-text-3)', marginRight: 4 }}>(ieri)</span>}
                   → <span style={{ marginLeft: 4 }}>{e.outcome}</span>
                   <span style={{ color: 'var(--fb-text-2)', marginLeft: 8 }}>
-                    med. {e.highMean.toFixed(1)} vs {e.lowMean.toFixed(1)}
+                    med. {e.highMean.toFixed(2)} vs {e.lowMean.toFixed(2)}
                   </span>
                   <span style={{ color: 'var(--fb-text-3)', marginLeft: 8, fontSize: 10 }}>
                     ({e.n} gg, {Math.abs(e.stat) >= 0.5 ? 'forte' : 'moderata'})

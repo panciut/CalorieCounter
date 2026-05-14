@@ -8,16 +8,63 @@ const { syncWorkoutSessionToExerciseLog, deleteWorkoutSessionExerciseLog } = req
 const today = () => new Date().toISOString().slice(0, 10);
 
 /**
- * Update active_kcal in daily_energy for a given date.
- * Uses UPSERT so we don't overwrite other columns.
+ * Recompute daily_energy.active_kcal as the SUM of calories_burned over all
+ * workout_sessions on that date. This is additive across multiple sessions
+ * (morning run + evening lift contribute both) and self-healing on
+ * delete/update — we always re-derive from the source of truth.
+ *
+ * Manual edits to active_kcal from the Balance widget will be overwritten the
+ * next time a workout session is ended/updated on that day. Free-form activity
+ * outside workouts belongs in extra_kcal.
  */
-function updateDailyEnergyWorkout(db, date, calories_burned) {
+function updateDailyEnergyWorkout(db, date /* unused arg kept for call-site compat */, _calories_burned) {
+  // Source of truth: the `exercises` mirror table. It already aggregates
+  //   - quick logs (exercises:add, source='manual')
+  //   - workout sessions (synced via syncWorkoutSessionToExerciseLog)
+  //   - auto-sessions created from schedule ticks (same sync path)
+  // Summing from `exercises` therefore covers every entry point without
+  // double-counting workout_sessions that were already mirrored.
+  const row = db.prepare(`
+    SELECT COALESCE(SUM(calories_burned), 0) AS total
+    FROM exercises
+    WHERE date = ?
+  `).get(date);
+  const total = row?.total ?? 0;
+
   db.prepare(`
     INSERT INTO daily_energy (date, resting_kcal, active_kcal, extra_kcal, steps)
     VALUES (?, 0, ?, 0, 0)
     ON CONFLICT(date) DO UPDATE SET
       active_kcal = excluded.active_kcal
-  `).run(date, calories_burned);
+  `).run(date, total);
+}
+
+/**
+ * Estimate kcal burned for a workout session using MET formula.
+ * kcal = MET × weight_kg × (duration_min / 60)
+ *
+ * MET is averaged over the distinct exercise_types logged in the session's sets.
+ * Weight is read from the latest weight_log entry (fallback 70 kg, same as goals_tdee).
+ * Returns null if duration is missing or non-positive.
+ */
+function estimateSessionKcal(db, sessionId, durationMin) {
+  if (!durationMin || durationMin <= 0) return null;
+
+  const weightRow = db.prepare('SELECT weight FROM weight_log ORDER BY date DESC LIMIT 1').get();
+  const weightKg = weightRow ? weightRow.weight : 70;
+
+  const metRows = db.prepare(`
+    SELECT DISTINCT et.met_value
+    FROM workout_exercise_sets s
+    LEFT JOIN exercise_types et ON et.id = s.exercise_id
+    WHERE s.session_id = ? AND et.met_value IS NOT NULL
+  `).all(sessionId);
+
+  const metAvg = metRows.length
+    ? metRows.reduce((a, r) => a + r.met_value, 0) / metRows.length
+    : 5.0;
+
+  return Math.round(metAvg * weightKg * (durationMin / 60));
 }
 
 function getSessionWithSets(db, id) {
@@ -178,6 +225,12 @@ function registerWorkoutsIpc() {
       old_exercise_sets:  syncedSets,
     });
 
+    // Auto-estimate kcal from MET × weight × duration when caller didn't provide it.
+    let finalCalories = calories_burned;
+    if (finalCalories == null) {
+      finalCalories = estimateSessionKcal(db, id, duration_min);
+    }
+
     db.prepare(`
       UPDATE workout_sessions
       SET ended_at = datetime('now'),
@@ -188,7 +241,7 @@ function registerWorkoutsIpc() {
       WHERE id = ?
     `).run(
       duration_min     ?? null,
-      calories_burned  ?? null,
+      finalCalories    ?? null,
       perceived_effort ?? null,
       note             ?? before.note,
       id
@@ -196,9 +249,9 @@ function registerWorkoutsIpc() {
 
     syncWorkoutSessionToExerciseLog(db, id);
 
-    // Update daily_energy active_kcal if calories provided
-    if (calories_burned != null) {
-      updateDailyEnergyWorkout(db, before.date, calories_burned);
+    // Push kcal into daily_energy.active_kcal (auto-estimated or manual).
+    if (finalCalories != null) {
+      updateDailyEnergyWorkout(db, before.date, finalCalories);
     }
 
     const minDur = duration_min ?? 0;
@@ -397,6 +450,7 @@ function registerWorkoutsIpc() {
     pushUndo('workouts:deleteSession', { row, sets, exerciseRow: exerciseRow || null, exerciseSets });
     deleteWorkoutSessionExerciseLog(db, id);
     db.prepare('DELETE FROM workout_sessions WHERE id = ?').run(id);
+    updateDailyEnergyWorkout(db, row.date);
     return { ok: true };
   });
 }

@@ -17,7 +17,7 @@ export default function Sparkline({ points, color = 'var(--fb-accent)', width = 
   const coords = points.map((p, i) => {
     const x = pad + (i / (points.length - 1)) * w;
     const y = pad + h - ((p - min) / range) * h;
-    return `${x.toFixed(1)},${y.toFixed(1)}`;
+    return `${x.toFixed(2)},${y.toFixed(2)}`;
   }).join(' ');
 
   return (

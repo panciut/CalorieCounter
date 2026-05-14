@@ -67,7 +67,7 @@ export default function MacroBreakdownTooltip({ id, label, actual, planned = 0, 
     .sort((a, b) => b.value - a.value)
     .slice(0, 10);
 
-  const fmt = (n: number) => `${Math.round(n * 10) / 10}${unit}`;
+  const fmt = (n: number) => `${Math.round(n * 100) / 100}${unit}`;
 
   return createPortal(
     <div

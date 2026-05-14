@@ -159,11 +159,17 @@ function registerUndoIpc() {
           data.old_ended_at, data.old_duration_min, data.old_calories_burned,
           data.old_perceived_effort, data.old_note, data.id
         );
-        // After restoring the session row:
-        const prevCalories = data.old_calories_burned ?? 0;
+        // active_kcal is derived from SUM(workout_sessions.calories_burned) per date.
+        // Recompute after restoring the previous session row.
         try {
-          db.prepare('UPDATE daily_energy SET active_kcal = ? WHERE date = ?')
-            .run(prevCalories, data.date);
+          const sumRow = db.prepare(
+            'SELECT COALESCE(SUM(calories_burned), 0) AS total FROM exercises WHERE date = ?'
+          ).get(data.date);
+          db.prepare(`
+            INSERT INTO daily_energy (date, resting_kcal, active_kcal, extra_kcal, steps)
+            VALUES (?, 0, ?, 0, 0)
+            ON CONFLICT(date) DO UPDATE SET active_kcal = excluded.active_kcal
+          `).run(data.date, sumRow?.total ?? 0);
         } catch (_) {}
         if (data.old_exercise_row) {
           db.prepare(`
@@ -245,6 +251,17 @@ function registerUndoIpc() {
             }
           }
         }
+        // Re-derive active_kcal from SUM after restoring the deleted session.
+        try {
+          const sumRow = db.prepare(
+            'SELECT COALESCE(SUM(calories_burned), 0) AS total FROM exercises WHERE date = ?'
+          ).get(data.row.date);
+          db.prepare(`
+            INSERT INTO daily_energy (date, resting_kcal, active_kcal, extra_kcal, steps)
+            VALUES (?, 0, ?, 0, 0)
+            ON CONFLICT(date) DO UPDATE SET active_kcal = excluded.active_kcal
+          `).run(data.row.date, sumRow?.total ?? 0);
+        } catch (_) {}
         return { action, description: 'workout session delete' };
 
       case 'workouts:removeSet':

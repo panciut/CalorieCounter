@@ -43,7 +43,7 @@ export default function WeightWidget({ weightKg, weightTrend }: WeightWidgetProp
         <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: 1.4, textTransform: 'uppercase', color: 'var(--fb-text-3)' }}>⚖️ {t('dash.weightTitle')}</span>
         {hasTrend && (
           <span style={{ fontSize: 9.5, fontWeight: 700, color: deltaColor, padding: '2px 7px', borderRadius: 99, background: `color-mix(in srgb, ${deltaColor} 12%, transparent)`, letterSpacing: 0.3, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-            {deltaPositive ? '↑' : '↓'} {Math.abs(delta).toFixed(1)} kg
+            {deltaPositive ? '↑' : '↓'} {Math.abs(delta).toFixed(2)} kg
           </span>
         )}
       </div>
@@ -52,7 +52,7 @@ export default function WeightWidget({ weightKg, weightTrend }: WeightWidgetProp
         <>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
             <span className="tnum" style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 42, fontWeight: 400, color: 'var(--fb-text)', letterSpacing: -1, lineHeight: 1 }}>
-              {weightKg.toFixed(1)}
+              {weightKg.toFixed(2)}
             </span>
             <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 14, color: 'var(--fb-text-2)' }}>kg</span>
           </div>
@@ -62,9 +62,9 @@ export default function WeightWidget({ weightKg, weightTrend }: WeightWidgetProp
                 <AreaChart points={weightTrend} color="var(--fb-accent)" height={48} />
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, color: 'var(--fb-text-3)' }}>
-                <span className="tnum">{weightTrend[0].toFixed(1)} kg</span>
+                <span className="tnum">{weightTrend[0].toFixed(2)} kg</span>
                 <span style={{ textTransform: 'uppercase', letterSpacing: 0.6, fontWeight: 600 }}>{weightTrend.length}gg</span>
-                <span className="tnum">{weightTrend[weightTrend.length - 1].toFixed(1)} kg</span>
+                <span className="tnum">{weightTrend[weightTrend.length - 1].toFixed(2)} kg</span>
               </div>
             </>
           )}

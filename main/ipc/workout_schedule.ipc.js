@@ -2,6 +2,17 @@ const { ipcMain } = require('electron');
 const { getDb } = require('../db');
 const { syncWorkoutSessionToExerciseLog, deleteWorkoutSessionExerciseLog } = require('./workout-log-sync');
 
+function recomputeActiveKcal(db, date) {
+  const row = db.prepare(
+    'SELECT COALESCE(SUM(calories_burned), 0) AS total FROM exercises WHERE date = ?'
+  ).get(date);
+  db.prepare(`
+    INSERT INTO daily_energy (date, resting_kcal, active_kcal, extra_kcal, steps)
+    VALUES (?, 0, ?, 0, 0)
+    ON CONFLICT(date) DO UPDATE SET active_kcal = excluded.active_kcal
+  `).run(date, row?.total ?? 0);
+}
+
 function estimatePlanDurationMin(planExercises) {
   let total = 0;
   for (const pe of planExercises) {
@@ -33,10 +44,29 @@ function createSessionFromPlan(db, planId, date) {
   const startedAt = `${date}T12:00:00.000Z`;
   const endedAt   = `${date}T12:${String(Math.min(59, durationMin)).padStart(2, '0')}:00.000Z`;
 
+  // Estimate kcal: MET avg over plan's distinct exercise types × weight × hours.
+  let kcalBurned = 0;
+  if (durationMin > 0 && planExercises.length) {
+    const ids = [...new Set(planExercises.map(pe => pe.exercise_type_id).filter(Boolean))];
+    let metAvg = 5.0;
+    if (ids.length) {
+      const placeholders = ids.map(() => '?').join(',');
+      const mets = db.prepare(
+        `SELECT met_value FROM exercise_types WHERE id IN (${placeholders})`
+      ).all(...ids);
+      if (mets.length) {
+        metAvg = mets.reduce((a, r) => a + (r.met_value ?? 5), 0) / mets.length;
+      }
+    }
+    const wRow = db.prepare('SELECT weight FROM weight_log ORDER BY date DESC LIMIT 1').get();
+    const weightKg = wRow ? wRow.weight : 70;
+    kcalBurned = Math.round(metAvg * weightKg * (durationMin / 60));
+  }
+
   const ins = db.prepare(`
-    INSERT INTO workout_sessions (date, plan_id, started_at, ended_at, duration_min, note)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `).run(date, planId, startedAt, endedAt, durationMin, 'Auto-loggato da pianificazione');
+    INSERT INTO workout_sessions (date, plan_id, started_at, ended_at, duration_min, calories_burned, note)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run(date, planId, startedAt, endedAt, durationMin, kcalBurned, 'Auto-loggato da pianificazione');
   const sessionId = ins.lastInsertRowid;
 
   const insSet = db.prepare(`
@@ -122,7 +152,9 @@ function registerWorkoutScheduleIpc() {
     const db = getDb();
     const sched = db.prepare('SELECT workout_session_id FROM workout_schedule WHERE id=?').get(id);
     if (sched?.workout_session_id) deleteAutoSession(db, sched.workout_session_id);
+    const schedDate = db.prepare('SELECT date FROM workout_schedule WHERE id=?').get(id)?.date;
     db.prepare('DELETE FROM workout_schedule WHERE id=?').run(id);
+    if (schedDate) recomputeActiveKcal(db, schedDate);
     return { ok: true };
   });
 
@@ -131,7 +163,7 @@ function registerWorkoutScheduleIpc() {
     const sched = db.prepare('SELECT * FROM workout_schedule WHERE id=?').get(id);
     if (!sched) return { ok: false };
 
-    return db.transaction(() => {
+    const result = db.transaction(() => {
       // Auto-log: tick → done, plan attached, no session yet
       if (status === 'done' && sched.plan_id && !sched.workout_session_id) {
         const sessionId = createSessionFromPlan(db, sched.plan_id, sched.date);
@@ -151,6 +183,8 @@ function registerWorkoutScheduleIpc() {
       db.prepare('UPDATE workout_schedule SET status=? WHERE id=?').run(status, id);
       return { ok: true };
     })();
+    recomputeActiveKcal(db, sched.date);
+    return result;
   });
 
   ipcMain.handle('workoutSchedule:move', (_, { id, toDate }) => {

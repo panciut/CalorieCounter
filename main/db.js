@@ -556,7 +556,7 @@ function initDb() {
   }
 
   // Seed exercise types from free-exercise-db (one-time migration, version-gated)
-  const EX_SEED_VERSION = '2';
+  const EX_SEED_VERSION = '3';
   const exVerRow = database.prepare("SELECT value FROM settings WHERE key='exercise_db_version'").get();
   if (!exVerRow || exVerRow.value !== EX_SEED_VERSION) {
     try {

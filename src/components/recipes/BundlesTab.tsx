@@ -13,7 +13,7 @@ import { serifItalic, pillPrimary, pillGhost, EmptyState, MACRO_DOT, MacroChip }
 type PantryCheckResult = { can_make: boolean; missing: PantryIngredientCheck[] };
 
 function n(v: unknown) { return Math.round(Number(v) || 0); }
-function nf(v: unknown) { return Math.round((Number(v) || 0) * 10) / 10; }
+function nf(v: unknown) { return Math.round((Number(v) || 0) * 100) / 100; }
 
 function BundlesTab() {
   const { showToast } = useToast();
@@ -434,7 +434,7 @@ function BundleCreateModal({ foods, onClose, onCreate, initial }: {
       const idx = prev.findIndex(x => x.food_id === food.id);
       if (idx >= 0) {
         const next = [...prev];
-        next[idx] = { ...next[idx], grams: Math.round((next[idx].grams + g) * 10) / 10 };
+        next[idx] = { ...next[idx], grams: Math.round((next[idx].grams + g) * 100) / 100 };
         return next;
       }
       return [...prev, { food_id: food.id, name: food.name, grams: g }];
@@ -468,10 +468,10 @@ function BundleCreateModal({ foods, onClose, onCreate, initial }: {
 
         <div className="flex flex-wrap gap-4 text-xs text-text-sec bg-bg rounded-lg px-4 py-3 tabular-nums">
           <span><span className="text-text font-semibold text-sm">{Math.round(totals.cal)}</span> kcal</span>
-          <span>F <span className="text-text font-medium">{Math.round(totals.fat * 10) / 10}</span>g</span>
-          <span>C <span className="text-text font-medium">{Math.round(totals.carbs * 10) / 10}</span>g</span>
-          <span>Fiber <span className="text-text font-medium">{Math.round(totals.fiber * 10) / 10}</span>g</span>
-          <span>P <span className="text-text font-medium">{Math.round(totals.protein * 10) / 10}</span>g</span>
+          <span>F <span className="text-text font-medium">{Math.round(totals.fat * 100) / 100}</span>g</span>
+          <span>C <span className="text-text font-medium">{Math.round(totals.carbs * 100) / 100}</span>g</span>
+          <span>Fiber <span className="text-text font-medium">{Math.round(totals.fiber * 100) / 100}</span>g</span>
+          <span>P <span className="text-text font-medium">{Math.round(totals.protein * 100) / 100}</span>g</span>
           <span className="ml-auto">{ingredients.length} {ingredients.length === 1 ? 'ingredient' : 'ingredients'}</span>
         </div>
 

@@ -4,7 +4,10 @@ import Fuse from 'fuse.js';
 import { api } from '../api';
 import type { Food, Recipe } from '../types';
 
-export type SearchItem = (Food & { _freq?: number; isRecipe?: false }) | (Recipe & { _freq?: number; isRecipe: true });
+export type SearchItem =
+  | (Food & { _freq?: number; isRecipe?: false; isActualRecipe?: false })
+  | (Recipe & { _freq?: number; isRecipe: true; isActualRecipe?: false })
+  | (Recipe & { _freq?: number; isRecipe: true; isActualRecipe: true; yield_g: number });
 
 interface FoodSearchProps {
   items: SearchItem[];
@@ -116,7 +119,7 @@ export default function FoodSearch({
       ? `${(g / 1000).toFixed(g >= 10000 ? 0 : 1)}kg`
       : `${Math.round(g)}g`;
     const packParts = s.packs.map(p =>
-      `${p.count % 1 === 0 ? p.count : p.count.toFixed(1)}×${fmtG(p.grams)}`,
+      `${p.count % 1 === 0 ? p.count : p.count.toFixed(2)}×${fmtG(p.grams)}`,
     );
     if (packParts.length === 0) return fmtG(s.loose_g);
     if (s.loose_g <= 0) return packParts.join(' + ');
@@ -285,17 +288,17 @@ export default function FoodSearch({
                     <span style={dotDivider} />
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                       <span style={{ width: 4, height: 4, borderRadius: '50%', background: 'var(--fb-red)' }} />
-                      P {Math.round(item.protein * 10) / 10}g
+                      P {Math.round(item.protein * 100) / 100}g
                     </span>
                     <span style={dotDivider} />
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                       <span style={{ width: 4, height: 4, borderRadius: '50%', background: 'var(--fb-amber)' }} />
-                      C {Math.round(item.carbs * 10) / 10}g
+                      C {Math.round(item.carbs * 100) / 100}g
                     </span>
                     <span style={dotDivider} />
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                       <span style={{ width: 4, height: 4, borderRadius: '50%', background: 'var(--fb-green)' }} />
-                      F {Math.round(item.fat * 10) / 10}g
+                      F {Math.round(item.fat * 100) / 100}g
                     </span>
                     {!item.isRecipe && (
                       <span style={{ ...serifItalic, fontWeight: 400, fontSize: 10, color: 'var(--fb-text-3)', marginLeft: 2 }}>
@@ -327,7 +330,7 @@ export default function FoodSearch({
                     border: '1px solid color-mix(in srgb, var(--fb-accent) 28%, transparent)',
                     flexShrink: 0,
                   }}>
-                    recipe
+                    {item.isActualRecipe ? 'recipe' : 'bundle'}
                   </span>
                 )}
               </li>

@@ -218,7 +218,7 @@ export default function PantryPage() {
         }
       }
       agg.pack_breakdown = [...packMap.entries()]
-        .map(([grams, count]) => ({ grams, count: Math.round(count * 10) / 10 }))
+        .map(([grams, count]) => ({ grams, count: Math.round(count * 100) / 100 }))
         .sort((a, b) => a.grams - b.grams);
     }
     return [...map.values()].sort((a, b) => {
@@ -264,7 +264,7 @@ export default function PantryPage() {
     let qtyStr = String(Math.round(batch.quantity_g));
     if (!isBulk && batch.piece_grams && batch.piece_grams > 0) {
       batchUnit = 'pcs';
-      qtyStr = String(Math.round((batch.quantity_g / batch.piece_grams) * 10) / 10);
+      qtyStr = String(Math.round((batch.quantity_g / batch.piece_grams) * 100) / 100);
     }
     setEditingBatch({ id: batch.id, qty: qtyStr, expiry: batch.expiry_date ?? '', unit: batchUnit });
   }

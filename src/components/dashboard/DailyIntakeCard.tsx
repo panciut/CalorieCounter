@@ -109,7 +109,7 @@ export default function DailyIntakeCard({ calories, protein, carbs, fat, size = 
                   <span style={{ fontSize: 9.5, color, fontWeight: 700, padding: '2px 6px', borderRadius: 99, background: `color-mix(in srgb, ${color} 14%, transparent)` }}>{macroPct}%</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 3 }}>
-                  <span className="tnum" style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 24, color: 'var(--fb-text)' }}>{m.actual.toFixed(1)}</span>
+                  <span className="tnum" style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 24, color: 'var(--fb-text)' }}>{m.actual.toFixed(2)}</span>
                   <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 12, color: 'var(--fb-text-3)' }}>g</span>
                 </div>
                 <div style={{ height: 6, background: 'var(--fb-bg-2)', borderRadius: 99, position: 'relative' }}>
@@ -175,7 +175,7 @@ export default function DailyIntakeCard({ calories, protein, carbs, fat, size = 
                 <span style={{ fontSize: 10, color, fontWeight: 700, padding: '2px 7px', borderRadius: 99, background: `color-mix(in srgb, ${color} 14%, transparent)` }}>{macroPct}%</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 3 }}>
-                <span className="tnum" style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 30, color: 'var(--fb-text)' }}>{m.actual.toFixed(1)}</span>
+                <span className="tnum" style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 30, color: 'var(--fb-text)' }}>{m.actual.toFixed(2)}</span>
                 <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 13, color: 'var(--fb-text-3)' }}>g</span>
               </div>
               <div style={{ height: 7, background: 'var(--fb-bg-2)', borderRadius: 99, position: 'relative' }}>

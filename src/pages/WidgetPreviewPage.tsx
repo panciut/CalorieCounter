@@ -262,7 +262,7 @@ function DailyIntake({ size }: { size: 'XS'|'S'|'M'|'L' }) {
                 <span style={{ fontSize: 9.5, color: m.color, fontWeight: 700, padding: '2px 6px', borderRadius: 99, background: `color-mix(in srgb, ${m.color} 14%, transparent)` }}>{macroPct}%</span>
               </div>
               <div style={{ display:'flex', alignItems:'baseline', gap: 3 }}>
-                <span style={numSerif(24)}>{m.actual.toFixed(1)}</span>
+                <span style={numSerif(24)}>{m.actual.toFixed(2)}</span>
                 <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 12, color: 'var(--fb-text-3)' }}>g</span>
               </div>
               <div style={{ height: 6, background: 'var(--fb-bg-2)', borderRadius: 99, position: 'relative' }}>
@@ -321,7 +321,7 @@ function DailyIntake({ size }: { size: 'XS'|'S'|'M'|'L' }) {
                 <span style={{ fontSize: 10, color: m.color, fontWeight: 700, padding: '2px 7px', borderRadius: 99, background: `color-mix(in srgb, ${m.color} 14%, transparent)` }}>{macroPct}%</span>
               </div>
               <div style={{ display:'flex', alignItems:'baseline', gap: 3 }}>
-                <span style={numSerif(30)}>{m.actual.toFixed(1)}</span>
+                <span style={numSerif(30)}>{m.actual.toFixed(2)}</span>
                 <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 13, color: 'var(--fb-text-3)' }}>g</span>
               </div>
               <div style={{ height: 7, background: 'var(--fb-bg-2)', borderRadius: 99, position: 'relative' }}>
@@ -539,7 +539,7 @@ function Water({ size }: { size: 'XS'|'S'|'M'|'L' }) {
       </div>
       <div>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-          <span style={numSerif(32, 'var(--fb-blue)')}>{MOCK.waterL.toFixed(1)}</span>
+          <span style={numSerif(32, 'var(--fb-blue)')}>{MOCK.waterL.toFixed(2)}</span>
           <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 12, color: 'var(--fb-text-2)' }}>L</span>
         </div>
         <div style={{ height: 4, background: 'var(--fb-bg-2)', borderRadius: 99, marginTop: 6 }}>
@@ -558,10 +558,10 @@ function Water({ size }: { size: 'XS'|'S'|'M'|'L' }) {
         <div>
           <span style={{ ...eyebrow, color: 'var(--fb-blue)' }}>💧 Water</span>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 4 }}>
-            <span style={numSerif(54, 'var(--fb-blue)')}>{MOCK.waterL.toFixed(1)}</span>
+            <span style={numSerif(54, 'var(--fb-blue)')}>{MOCK.waterL.toFixed(2)}</span>
             <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 14, color: 'var(--fb-text-2)' }}>L</span>
           </div>
-          <div style={{ fontSize: 11, color: 'var(--fb-text-3)' }}>of {MOCK.waterGoalL.toFixed(1)}L · {(MOCK.waterGoalL - MOCK.waterL).toFixed(1)}L to goal</div>
+          <div style={{ fontSize: 11, color: 'var(--fb-text-3)' }}>of {MOCK.waterGoalL.toFixed(2)}L · {(MOCK.waterGoalL - MOCK.waterL).toFixed(2)}L to goal</div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
           <span style={{ ...numSerif(28, 'var(--fb-blue)') }}>{pct}%</span>
@@ -612,8 +612,8 @@ function Water({ size }: { size: 'XS'|'S'|'M'|'L' }) {
             <span style={numSerif(72, 'var(--fb-blue)')}>{MOCK.waterL.toFixed(2)}</span>
             <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 16, color: 'var(--fb-text-2)' }}>L</span>
           </div>
-          <div style={{ fontSize: 12, color: 'var(--fb-text-3)', marginTop: 2 }}>of {MOCK.waterGoalL.toFixed(1)}L</div>
-          <div style={{ fontSize: 11, color: 'var(--fb-blue)', fontWeight: 600 }}>{(MOCK.waterGoalL - MOCK.waterL).toFixed(1)}L to goal</div>
+          <div style={{ fontSize: 12, color: 'var(--fb-text-3)', marginTop: 2 }}>of {MOCK.waterGoalL.toFixed(2)}L</div>
+          <div style={{ fontSize: 11, color: 'var(--fb-blue)', fontWeight: 600 }}>{(MOCK.waterGoalL - MOCK.waterL).toFixed(2)}L to goal</div>
         </div>
         <div style={{ marginTop: 12 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9.5, color: 'var(--fb-text-3)', letterSpacing: 0.5, fontWeight: 600, textTransform: 'uppercase', marginBottom: 4 }}>
@@ -1444,7 +1444,7 @@ function Mood({ size }: { size: 'XS'|'S'|'M'|'L' }) {
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
               <span style={{ fontSize: 12 }}>{m.label}</span>
               <span style={{ fontSize: 10, color: 'var(--fb-text-3)', textTransform: 'uppercase', letterSpacing: 0.4, fontWeight: 600 }}>{m.name}</span>
-              <span style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--fb-text-3)' }} className="tnum">avg {(m.week.reduce((a,b)=>a+b,0)/m.week.length).toFixed(1)}</span>
+              <span style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--fb-text-3)' }} className="tnum">avg {(m.week.reduce((a,b)=>a+b,0)/m.week.length).toFixed(2)}</span>
             </div>
             <div style={{ flex: 1, minHeight: 0 }}>
               <Spark points={m.week} color={m.color} height={42} />

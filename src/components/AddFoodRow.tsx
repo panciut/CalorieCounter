@@ -61,9 +61,9 @@ export default function AddFoodRow({ foods, onAdd }: AddFoodRowProps) {
             <span className="text-text font-medium">{selected.name}</span>
             <span>per 100g:</span>
             <span><span className="text-text font-medium">{Math.round(selected.calories)}</span> kcal</span>
-            <span><span className="text-text font-medium">{Math.round(selected.protein * 10) / 10}</span>g P</span>
-            <span><span className="text-text font-medium">{Math.round(selected.carbs * 10) / 10}</span>g C</span>
-            <span><span className="text-text font-medium">{Math.round(selected.fat * 10) / 10}</span>g F</span>
+            <span><span className="text-text font-medium">{Math.round(selected.protein * 100) / 100}</span>g P</span>
+            <span><span className="text-text font-medium">{Math.round(selected.carbs * 100) / 100}</span>g C</span>
+            <span><span className="text-text font-medium">{Math.round(selected.fat * 100) / 100}</span>g F</span>
           </div>
         <div className="flex items-center gap-2 flex-wrap">
           <input

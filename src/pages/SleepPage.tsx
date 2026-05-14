@@ -314,7 +314,7 @@ export default function SleepPage() {
           <BarChartCard
             data={sleepStats.days.map(d => ({
               label: formatShortDate(d.date),
-              value: d.duration_min != null ? Math.round((d.duration_min / 60) * 10) / 10 : 0,
+              value: d.duration_min != null ? Math.round((d.duration_min / 60) * 100) / 100 : 0,
             }))}
             height={200}
             unit="h"
@@ -341,7 +341,7 @@ export default function SleepPage() {
             {sleepStats.avg_quality != null && (
               <div style={{ background: 'var(--fb-bg)', border: '1px solid var(--fb-border)', borderRadius: 12, padding: '10px 14px' }}>
                 <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 1.2, textTransform: 'uppercase', color: 'var(--fb-text-3)', marginBottom: 4 }}>{t('sleep.avgQuality')}</div>
-                <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--fb-text)', letterSpacing: -0.5 }}>{sleepStats.avg_quality.toFixed(1)}/5</div>
+                <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--fb-text)', letterSpacing: -0.5 }}>{sleepStats.avg_quality.toFixed(2)}/5</div>
               </div>
             )}
           </div>
@@ -355,8 +355,8 @@ export default function SleepPage() {
           metrics={[
             {
               label: t('sleep.avgDuration'),
-              thisWeek: sleepStats.week_avg_min != null ? Math.round((sleepStats.week_avg_min / 60) * 10) / 10 : 0,
-              lastWeek: sleepStats.last_week_avg_min != null ? Math.round((sleepStats.last_week_avg_min / 60) * 10) / 10 : 0,
+              thisWeek: sleepStats.week_avg_min != null ? Math.round((sleepStats.week_avg_min / 60) * 100) / 100 : 0,
+              lastWeek: sleepStats.last_week_avg_min != null ? Math.round((sleepStats.last_week_avg_min / 60) * 100) / 100 : 0,
               unit: 'h',
               higherIsBetter: true,
             },
@@ -375,7 +375,7 @@ export default function SleepPage() {
             },
             {
               label: t('sleep.debt7d'),
-              thisWeek: Math.round(sleepStats.debt_min_7d / 60 * 10) / 10,
+              thisWeek: Math.round(sleepStats.debt_min_7d / 60 * 100) / 100,
               lastWeek: 0,
               unit: 'h',
               higherIsBetter: false,

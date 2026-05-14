@@ -39,7 +39,7 @@ import AdaptiveTdeeCard from '../components/dashboard/AdaptiveTdeeCard';
 import DeductionEventModal from '../components/DeductionEventModal';
 import {
   MEAL_ORDER,
-  type LogEntry, type Food, type Recipe, type RecipeIngredient, type Meal,
+  type LogEntry, type Food, type Recipe, type RecipeIngredient, type ActualRecipe, type Meal,
   type WaterEntry, type SupplementDay, type FrequentFood, type WeightEntry,
   type DailyEnergy, type Exercise,
   type MealSuggestion, type MealSuggestionsResult, type TDEEResult,
@@ -312,6 +312,7 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
   const [entries, setEntries]       = useState<LogEntry[]>([]);
   const [foods, setFoods]           = useState<Food[]>([]);
   const [recipes, setRecipes]       = useState<Recipe[]>([]);
+  const [actualRecipes, setActualRecipes] = useState<ActualRecipe[]>([]);
   const [frequent, setFrequent]     = useState<FrequentFood[]>([]);
   const [favorites, setFavorites]   = useState<Food[]>([]);
   const [waterTotal, setWaterTotal] = useState(0);
@@ -337,6 +338,8 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
 
   const [selectedFood, setSelectedFood]     = useState<Food | null>(null);
   const [selectedRecipe, setSelectedRecipe] = useState<RecipeEditState | null>(null);
+  const [selectedActual, setSelectedActual] = useState<ActualRecipe | null>(null);
+  const [actualGrams, setActualGrams]       = useState('');
   const [searchKey, setSearchKey]           = useState(0);
   const [amount, setAmount]                 = useState('');
   const [usePieces, setUsePieces]           = useState(false);
@@ -392,37 +395,43 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
   const [dragOverId, setDragOverId] = useState<string | null>(null);
 
   useEffect(() => {
-    try {
-      const stored = settings?.dashboard_widget_order;
-      if (stored) {
-        const parsed = JSON.parse(stored) as string[];
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          // Legacy widget IDs that are now split into bento cells. Any of these
-          // present in the stored order means we should snap to defaults.
-          const LEGACY = new Set(['gamification', 'lifestyle', 'tasks_habits', 'sleep_mood', 'hero']);
-          const hadLegacy = parsed.some(id => LEGACY.has(id));
-          if (hadLegacy) {
-            setWidgetOrder(DEFAULT_WIDGET_ORDER);
-            api.settings.save({ dashboard_widget_order: JSON.stringify(DEFAULT_WIDGET_ORDER) });
-          } else {
-            const seen = new Set<string>();
-            const dedup = parsed.filter(id => seen.has(id) ? false : (seen.add(id), true));
-            const merged = [...dedup.filter(id => DEFAULT_WIDGET_ORDER.includes(id)), ...DEFAULT_WIDGET_ORDER.filter(id => !dedup.includes(id))];
-            setWidgetOrder(merged);
+    let cancelled = false;
+    // Fetch directly from DB on mount to avoid stale-context races
+    // (context refetches asynchronously after save+invalidate; a quick
+    //  navigate-away/back could otherwise apply a stale value before
+    //  the refetch resolves).
+    api.settings.get().then(fresh => {
+      if (cancelled) return;
+      try {
+        const stored = fresh?.dashboard_widget_order;
+        if (stored) {
+          const parsed = JSON.parse(stored) as string[];
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            const LEGACY = new Set(['gamification', 'lifestyle', 'tasks_habits', 'sleep_mood', 'hero']);
+            const hadLegacy = parsed.some(id => LEGACY.has(id));
+            if (hadLegacy) {
+              setWidgetOrder(DEFAULT_WIDGET_ORDER);
+              api.settings.save({ dashboard_widget_order: JSON.stringify(DEFAULT_WIDGET_ORDER) }).then(() => invalidate());
+            } else {
+              const seen = new Set<string>();
+              const dedup = parsed.filter(id => seen.has(id) ? false : (seen.add(id), true));
+              const merged = [...dedup.filter(id => DEFAULT_WIDGET_ORDER.includes(id)), ...DEFAULT_WIDGET_ORDER.filter(id => !dedup.includes(id))];
+              setWidgetOrder(merged);
+            }
           }
         }
-      }
-      // Sizes
-      const storedSizes = settings?.dashboard_widget_sizes;
-      if (storedSizes) {
-        const parsed = JSON.parse(storedSizes) as Record<string, WidgetSize>;
-        if (parsed && typeof parsed === 'object') {
-          setWidgetSizes({ ...DEFAULT_WIDGET_SIZES, ...parsed });
+        const storedSizes = fresh?.dashboard_widget_sizes;
+        if (storedSizes) {
+          const parsed = JSON.parse(storedSizes) as Record<string, WidgetSize>;
+          if (parsed && typeof parsed === 'object') {
+            setWidgetSizes({ ...DEFAULT_WIDGET_SIZES, ...parsed });
+          }
         }
-      }
-    } catch {}
+      } catch {}
+    });
+    return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settings?.dashboard_widget_order, settings?.dashboard_widget_sizes]);
+  }, []);
 
   // Esc exits edit mode
   useEffect(() => {
@@ -439,7 +448,7 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
     if (!RESIZE_CYCLE.includes(next)) return;
     const newSizes = { ...widgetSizes, [id]: next };
     setWidgetSizes(newSizes);
-    api.settings.save({ dashboard_widget_sizes: JSON.stringify(newSizes) });
+    api.settings.save({ dashboard_widget_sizes: JSON.stringify(newSizes) }).then(() => invalidate());
   }
 
   function widgetSize(id: string): WidgetSize {
@@ -456,18 +465,19 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
     newOrder.splice(fromIdx, 1);
     newOrder.splice(toIdx, 0, dragId);
     setWidgetOrder(newOrder);
-    api.settings.save({ dashboard_widget_order: JSON.stringify(newOrder) });
+    api.settings.save({ dashboard_widget_order: JSON.stringify(newOrder) }).then(() => invalidate());
     setDragId(null);
     setDragOverId(null);
   }
 
   const load = useCallback(async () => {
-    const [ent, fav, fds, wd, rcs, nd, freq] = await Promise.all([
+    const [ent, fav, fds, wd, rcs, arcs, nd, freq] = await Promise.all([
       api.log.getDay(dateStr),
       api.foods.getFavorites(),
       api.foods.getAll(),
       api.water.getDay(dateStr),
       api.recipes.getAll(),
+      api.actualRecipes.getAll(),
       api.notes.get(dateStr),
       api.foods.getFrequent(10),
     ]);
@@ -477,6 +487,7 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
     setWaterTotal(wd.total_ml);
     setWaterEntries(wd.entries);
     setRecipes(rcs);
+    setActualRecipes(arcs);
     setNote(nd.note || '');
     setFrequent(freq);
     // Non-blocking: meal suggestions depend on consumed kcal and pantry state
@@ -548,9 +559,22 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
   const searchItems: SearchItem[] = [
     ...foods.map(f => ({ ...f, _freq: freqMap.get(f.id) || 0, isRecipe: false as const })),
     ...recipes.map(r => ({ ...r, isRecipe: true as const, _freq: 0 })),
+    ...actualRecipes.map(r => ({
+      id: r.id, name: r.name, description: r.description ?? '',
+      calories: r.total_calories, protein: r.total_protein, carbs: r.total_carbs, fat: r.total_fat, fiber: r.total_fiber,
+      ingredient_count: 0,
+      isRecipe: true as const, isActualRecipe: true as const, yield_g: r.yield_g, _freq: 0,
+    })),
   ];
 
   async function handleSelect(item: SearchItem) {
+    if (item.isRecipe && item.isActualRecipe) {
+      const full = await api.actualRecipes.get(item.id);
+      setSelectedActual(full);
+      setActualGrams(String(full.yield_g || ''));
+      setSelectedRecipe(null); setSelectedFood(null); setAmount('');
+      return;
+    }
     if (item.isRecipe) {
       const full = await api.recipes.get((item as Recipe).id);
       setSelectedRecipe({ id: full.id, name: full.name, ingredients: (full.ingredients || []).map(ing => ({ ...ing, editGrams: ing.grams })) });
@@ -567,7 +591,7 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
     }
   }
 
-  function handleClear() { setSelectedFood(null); setSelectedRecipe(null); setAmount(''); setSelectedPackId(null); setSearchKey(k => k + 1); }
+  function handleClear() { setSelectedFood(null); setSelectedRecipe(null); setSelectedActual(null); setActualGrams(''); setAmount(''); setSelectedPackId(null); setSearchKey(k => k + 1); }
 
   const selectedPack = selectedFood?.packages?.find(p => p.id === selectedPackId) ?? null;
   const pieceSize: number | null = selectedFood?.piece_grams ?? selectedPack?.grams ?? null;
@@ -602,6 +626,33 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
     if (shortages.length > 0) showToast(t('pantry.shortageMulti').replace('{list}', shortages.join(', ')), 'warning');
     if (allEvents.length) pushDeduction(allEvents);
     setSelectedRecipe(null); setSearchKey(k => k + 1);
+    load();
+  }
+
+  async function handleLogActual(status: 'logged' | 'planned') {
+    if (!selectedActual) return;
+    const g = parseFloat(actualGrams);
+    if (!g || g <= 0) return;
+    // Note: actualRecipes:log handler logs ingredients scaled by g/yield_g. Status 'planned' not supported by IPC — only logged.
+    if (status === 'planned') {
+      // Fallback: replicate scaling locally with planned status via log.add per ingredient
+      const ratio = selectedActual.yield_g > 0 ? g / selectedActual.yield_g : 1;
+      const shortages: string[] = [];
+      const allEvents: import('../types').DeductionEvent[] = [];
+      for (const ing of (selectedActual.ingredients ?? [])) {
+        const grams = ing.grams * ratio;
+        if (grams > 0) {
+          const result = await api.log.add({ food_id: ing.food_id, grams, meal, date: dateStr, status: 'planned', pantry_id: logPantryId });
+          if (result.shortage > 0 && result.shortage_food) shortages.push(`${Math.round(result.shortage)}g of ${result.shortage_food}`);
+          if (result.events?.length) allEvents.push(...result.events);
+        }
+      }
+      if (shortages.length > 0) showToast(t('pantry.shortageMulti').replace('{list}', shortages.join(', ')), 'warning');
+      if (allEvents.length) pushDeduction(allEvents);
+    } else {
+      await api.actualRecipes.log({ recipe_id: selectedActual.id, grams_eaten: g, meal, date: dateStr });
+    }
+    setSelectedActual(null); setActualGrams(''); setSearchKey(k => k + 1);
     load();
   }
 
@@ -830,7 +881,7 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
             <FoodSearch key={searchKey} items={searchItems} onSelect={handleSelect} onClear={handleClear}
               placeholder={t('dash.searchPlaceholder')} pantryId={logPantryId} compact />
 
-            {(selectedFood || selectedRecipe) && (
+            {(selectedFood || selectedRecipe || selectedActual) && (
               <>
                 <div onClick={handleClear} style={{ position: 'fixed', inset: 0, zIndex: 15 }} />
 
@@ -863,7 +914,7 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
                             const r = effectiveGrams / 100;
                             return (
                               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                                {([['kcal', Math.round(selectedFood.calories * r)], ['P', `${Math.round(selectedFood.protein * r * 10) / 10}g`], ['C', `${Math.round(selectedFood.carbs * r * 10) / 10}g`], ['F', `${Math.round(selectedFood.fat * r * 10) / 10}g`]] as [string, string | number][]).map(([l, v]) => (
+                                {([['kcal', Math.round(selectedFood.calories * r)], ['P', `${Math.round(selectedFood.protein * r * 100) / 100}g`], ['C', `${Math.round(selectedFood.carbs * r * 100) / 100}g`], ['F', `${Math.round(selectedFood.fat * r * 100) / 100}g`]] as [string, string | number][]).map(([l, v]) => (
                                   <div key={l}>
                                     <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--fb-text)', fontFamily: 'var(--font-serif)', lineHeight: 1 }}>{v}</div>
                                     <div style={{ fontSize: 9, fontWeight: 600, letterSpacing: 1, textTransform: 'uppercase', color: 'var(--fb-text-3)', marginTop: 2 }}>{l}</div>
@@ -910,12 +961,57 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
                         </div>
                         <div style={{ display: 'flex', gap: 12, fontSize: 11, color: 'var(--fb-text-2)' }}>
                           <span>{Math.round(rt.cal)} kcal</span>
-                          <span>P {Math.round(rt.protein * 10) / 10}g</span>
-                          <span>C {Math.round(rt.carbs * 10) / 10}g</span>
-                          <span>F {Math.round(rt.fat * 10) / 10}g</span>
+                          <span>P {Math.round(rt.protein * 100) / 100}g</span>
+                          <span>C {Math.round(rt.carbs * 100) / 100}g</span>
+                          <span>F {Math.round(rt.fat * 100) / 100}g</span>
                         </div>
                         <MealPills selected={meal} onChange={setMeal} />
                         <button onClick={() => handleLogRecipe(logStatus)} style={{ ...btnPrimary, justifyContent: 'center', padding: '10px 16px', fontSize: 13 }}>
+                          {planMode ? t('dash.addToPlan') : t('dash.logRecipe')}
+                        </button>
+                      </div>
+                    );
+                  })()}
+
+                  {selectedActual && (() => {
+                    const g = parseFloat(actualGrams) || 0;
+                    const ratio = selectedActual.yield_g > 0 ? g / selectedActual.yield_g : 0;
+                    const rt = {
+                      cal:     selectedActual.total_calories * ratio,
+                      protein: selectedActual.total_protein  * ratio,
+                      carbs:   selectedActual.total_carbs    * ratio,
+                      fat:     selectedActual.total_fat      * ratio,
+                    };
+                    return (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: 1.2, textTransform: 'uppercase', color: 'var(--fb-accent)' }}>Recipe</div>
+                            <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 15, color: 'var(--fb-text)' }}>{selectedActual.name}</span>
+                          </div>
+                          <button onClick={handleClear} style={{ ...btnIcon, color: 'var(--fb-text-3)' }}>✕</button>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'var(--fb-bg-2)', borderRadius: 10, padding: '8px 12px', border: '1px solid var(--fb-border)' }}>
+                          <span style={{ fontSize: 11, color: 'var(--fb-text-2)', flex: 1 }}>
+                            How much did you eat? <span style={{ color: 'var(--fb-text-3)' }}>(total g · yield {selectedActual.yield_g}g)</span>
+                          </span>
+                          <input type="text" inputMode="decimal" value={actualGrams}
+                            onChange={e => setActualGrams(e.target.value)}
+                            autoFocus
+                            placeholder="grams"
+                            style={{ width: 72, background: 'var(--fb-card)', border: '1px solid var(--fb-border)', borderRadius: 6, padding: '4px 8px', fontSize: 12, textAlign: 'center', color: 'var(--fb-text)', outline: 'none' }} />
+                          <span style={{ fontSize: 11, color: 'var(--fb-text-3)' }}>g</span>
+                        </div>
+                        {ratio > 0 && (
+                          <div style={{ display: 'flex', gap: 12, fontSize: 11, color: 'var(--fb-text-2)' }}>
+                            <span>{Math.round(rt.cal)} kcal</span>
+                            <span>P {Math.round(rt.protein * 100) / 100}g</span>
+                            <span>C {Math.round(rt.carbs * 100) / 100}g</span>
+                            <span>F {Math.round(rt.fat * 100) / 100}g</span>
+                          </div>
+                        )}
+                        <MealPills selected={meal} onChange={setMeal} />
+                        <button onClick={() => handleLogActual(logStatus)} disabled={!(parseFloat(actualGrams) > 0)} style={{ ...btnPrimary, justifyContent: 'center', padding: '10px 16px', fontSize: 13, opacity: parseFloat(actualGrams) > 0 ? 1 : 0.4 }}>
                           {planMode ? t('dash.addToPlan') : t('dash.logRecipe')}
                         </button>
                       </div>
@@ -1058,6 +1154,8 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
                     onAddToMeal={m => { setMeal(m as Meal); handleClear(); }}
                     onAddFirst={() => handleClear()}
                     onCopyDay={handleCopyDay}
+                    onDeleteEntry={async (id) => { await api.log.delete(id); load(); }}
+                    onUpdateEntry={async (id, food_id, grams, meal) => { await api.log.update({ id, food_id, grams, meal }); load(); }}
                   />
                 </div>
               </DragSection>

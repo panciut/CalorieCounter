@@ -7,6 +7,31 @@ const localDate = () => {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 };
 
+// kcal = MET × weight_kg × (duration_min / 60). Looks up MET by exercise type
+// name (fallback 5.0 for unknown types) and bodyweight from latest weight_log
+// (fallback 70 kg). Returns 0 when duration is missing.
+function estimateKcalByTypeName(db, typeName, durationMin) {
+  if (!durationMin || durationMin <= 0) return 0;
+  const et = typeName
+    ? db.prepare('SELECT met_value FROM exercise_types WHERE name = ?').get(typeName)
+    : null;
+  const met = et ? et.met_value : 5.0;
+  const wRow = db.prepare('SELECT weight FROM weight_log ORDER BY date DESC LIMIT 1').get();
+  const weightKg = wRow ? wRow.weight : 70;
+  return Math.round(met * weightKg * (durationMin / 60));
+}
+
+function recomputeDailyActiveKcal(db, date) {
+  const row = db.prepare(
+    'SELECT COALESCE(SUM(calories_burned), 0) AS total FROM exercises WHERE date = ?'
+  ).get(date);
+  db.prepare(`
+    INSERT INTO daily_energy (date, resting_kcal, active_kcal, extra_kcal, steps)
+    VALUES (?, 0, ?, 0, 0)
+    ON CONFLICT(date) DO UPDATE SET active_kcal = excluded.active_kcal
+  `).run(date, row?.total ?? 0);
+}
+
 function withSets(db, exercises) {
   if (!exercises.length) return exercises;
   const ids = exercises.map(e => e.id);
@@ -38,16 +63,21 @@ function registerExercisesIpc() {
   ipcMain.handle('exercises:add', (_, { date, type, duration_min, calories_burned, notes, sets }) => {
     const db = getDb();
     const d = date || localDate();
+    // Auto-estimate kcal from MET formula when caller didn't supply a value.
+    const finalKcal = (calories_burned == null || calories_burned === 0)
+      ? estimateKcalByTypeName(db, type, duration_min || 0)
+      : calories_burned;
     const result = db.transaction(() => {
       const { lastInsertRowid } = db.prepare(
         'INSERT INTO exercises (date, type, duration_min, calories_burned, notes, source) VALUES (?, ?, ?, ?, ?, ?)'
-      ).run(d, type, duration_min || 0, calories_burned || 0, notes || null, 'manual');
+      ).run(d, type, duration_min || 0, finalKcal, notes || null, 'manual');
       if (sets && sets.length) {
         const ins = db.prepare('INSERT INTO exercise_sets (exercise_id, set_number, reps, weight_kg) VALUES (?, ?, ?, ?)');
         sets.forEach((s, i) => ins.run(lastInsertRowid, i + 1, s.reps || null, s.weight_kg || null));
       }
       return { id: lastInsertRowid };
     })();
+    recomputeDailyActiveKcal(db, d);
     
     // Update streak for workouts based on this exercise logging
     try {
@@ -84,20 +114,28 @@ function registerExercisesIpc() {
       ).run(duration_min, calories_burned, notes || null, row.workout_session_id);
       syncWorkoutSessionToExerciseLog(db, row.workout_session_id);
     } else {
+      const finalKcal = (calories_burned == null || calories_burned === 0)
+        ? estimateKcalByTypeName(db, type, duration_min || 0)
+        : calories_burned;
       db.prepare(
         'UPDATE exercises SET type=?, duration_min=?, calories_burned=?, notes=? WHERE id=?'
-      ).run(type, duration_min, calories_burned, notes || null, id);
+      ).run(type, duration_min, finalKcal, notes || null, id);
     }
+    if (row?.date) recomputeDailyActiveKcal(db, row.date);
     return { ok: true };
   });
 
   ipcMain.handle('exercises:delete', (_, { id }) => {
     const db = getDb();
+    let date = null;
     if (id < 0) {
+      const sess = db.prepare('SELECT date FROM workout_sessions WHERE id = ?').get(-id);
+      date = sess?.date ?? null;
       deleteWorkoutSessionExerciseLog(db, -id);
       db.prepare('DELETE FROM workout_sessions WHERE id = ?').run(-id);
     } else {
-      const row = db.prepare('SELECT workout_session_id FROM exercises WHERE id = ?').get(id);
+      const row = db.prepare('SELECT date, workout_session_id FROM exercises WHERE id = ?').get(id);
+      date = row?.date ?? null;
       if (row?.workout_session_id != null) {
         deleteWorkoutSessionExerciseLog(db, row.workout_session_id);
         db.prepare('DELETE FROM workout_sessions WHERE id = ?').run(row.workout_session_id);
@@ -105,6 +143,7 @@ function registerExercisesIpc() {
         db.prepare('DELETE FROM exercises WHERE id = ?').run(id);
       }
     }
+    if (date) recomputeDailyActiveKcal(db, date);
     return { ok: true };
   });
 

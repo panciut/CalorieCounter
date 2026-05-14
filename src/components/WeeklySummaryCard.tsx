@@ -27,14 +27,14 @@ export default function WeeklySummaryCard({ title, metrics }: WeeklySummaryCardP
       }}>
         {metrics.map((m, i) => {
           const delta = m.thisWeek - m.lastWeek;
-          const formatted = m.format ? m.format(m.thisWeek) : `${Math.round(m.thisWeek * 10) / 10}${m.unit ?? ''}`;
+          const formatted = m.format ? m.format(m.thisWeek) : `${Math.round(m.thisWeek * 100) / 100}${m.unit ?? ''}`;
           let deltaColor = 'var(--fb-text-3)';
           if (delta !== 0 && m.higherIsBetter !== undefined) {
             const isGood = m.higherIsBetter ? delta > 0 : delta < 0;
             deltaColor = isGood ? 'var(--fb-green)' : 'var(--fb-red)';
           }
           const arrow = delta > 0 ? '▲' : delta < 0 ? '▼' : '';
-          const absDelta = m.format ? m.format(Math.abs(delta)) : `${Math.round(Math.abs(delta) * 10) / 10}${m.unit ?? ''}`;
+          const absDelta = m.format ? m.format(Math.abs(delta)) : `${Math.round(Math.abs(delta) * 100) / 100}${m.unit ?? ''}`;
           return (
             <div key={i} style={{
               background: 'var(--fb-bg)',

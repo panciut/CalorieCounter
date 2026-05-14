@@ -420,7 +420,7 @@ export default function JournalPage() {
               label: t('journal.avgMood'),
               thisWeek: moodStats.week_avg_mood ?? 0,
               lastWeek: moodStats.last_week_avg_mood ?? 0,
-              format: (v: number) => v.toFixed(1),
+              format: (v: number) => v.toFixed(2),
               higherIsBetter: true,
             },
             {
@@ -448,13 +448,13 @@ export default function JournalPage() {
             {moodStats.avg_energy != null && (
               <div style={{ background: 'var(--fb-bg)', border: '1px solid var(--fb-border)', borderRadius: 12, padding: '10px 14px', flex: 1, minWidth: 100 }}>
                 <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 1, textTransform: 'uppercase', color: 'var(--fb-text-3)', marginBottom: 4 }}>{t('journal.energy')}</div>
-                <div style={{ fontSize: 18, fontWeight: 700, color: '#10b981' }}>{moodStats.avg_energy.toFixed(1)}/5</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: '#10b981' }}>{moodStats.avg_energy.toFixed(2)}/5</div>
               </div>
             )}
             {moodStats.avg_stress != null && (
               <div style={{ background: 'var(--fb-bg)', border: '1px solid var(--fb-border)', borderRadius: 12, padding: '10px 14px', flex: 1, minWidth: 100 }}>
                 <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 1, textTransform: 'uppercase', color: 'var(--fb-text-3)', marginBottom: 4 }}>{t('journal.stress')}</div>
-                <div style={{ fontSize: 18, fontWeight: 700, color: '#ef4444' }}>{moodStats.avg_stress.toFixed(1)}/5</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: '#ef4444' }}>{moodStats.avg_stress.toFixed(2)}/5</div>
               </div>
             )}
             {moodStats.best_day && (

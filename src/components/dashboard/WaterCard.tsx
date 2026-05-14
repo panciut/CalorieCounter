@@ -75,7 +75,7 @@ export default function WaterCard({ waterTotal, waterGoal, onAdd, onCustom, size
       <div style={{ ...fbCard, height: '100%', padding: 12, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
         <span style={{ fontSize: 9, fontWeight: 600, letterSpacing: 1.4, textTransform: 'uppercase', color: 'var(--fb-blue)' }}>💧 {t('dash.water')}</span>
         <div className="tnum" style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 34, fontWeight: 400, color: 'var(--fb-blue)', lineHeight: 1 }}>
-          {waterL.toFixed(1)}L
+          {waterL.toFixed(2)}L
         </div>
         <div style={{ height: 3, width: '70%', background: 'var(--fb-bg-2)', borderRadius: 99 }}>
           <div style={{ height: '100%', width: `${pct}%`, background: 'var(--fb-blue)', borderRadius: 99 }} />
@@ -96,7 +96,7 @@ export default function WaterCard({ waterTotal, waterGoal, onAdd, onCustom, size
         <div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
             <span className="tnum" style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 32, fontWeight: 400, color: 'var(--fb-blue)', lineHeight: 1 }}>
-              {waterL.toFixed(1)}
+              {waterL.toFixed(2)}
             </span>
             <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 12, color: 'var(--fb-text-2)' }}>L</span>
           </div>
@@ -119,11 +119,11 @@ export default function WaterCard({ waterTotal, waterGoal, onAdd, onCustom, size
           <div>
             <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: 1.4, textTransform: 'uppercase', color: 'var(--fb-blue)' }}>💧 {t('dash.water')}</span>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 4 }}>
-              <span className="tnum" style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 54, fontWeight: 400, color: 'var(--fb-blue)', lineHeight: 1 }}>{waterL.toFixed(1)}</span>
+              <span className="tnum" style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 54, fontWeight: 400, color: 'var(--fb-blue)', lineHeight: 1 }}>{waterL.toFixed(2)}</span>
               <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 14, color: 'var(--fb-text-2)' }}>L</span>
             </div>
             <div style={{ fontSize: 11, color: 'var(--fb-text-3)' }}>
-              of {goalL.toFixed(1)}L · {Math.max(0, goalL - waterL).toFixed(1)}L to goal
+              of {goalL.toFixed(2)}L · {Math.max(0, goalL - waterL).toFixed(2)}L to goal
             </div>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
@@ -140,7 +140,7 @@ export default function WaterCard({ waterTotal, waterGoal, onAdd, onCustom, size
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9.5, color: 'var(--fb-text-3)', textTransform: 'uppercase', letterSpacing: 0.6, fontWeight: 600, marginBottom: 4 }}>
               <span>Last 7 days</span>
-              <span className="tnum">avg {weekAvg.toFixed(1)}L</span>
+              <span className="tnum">avg {weekAvg.toFixed(2)}L</span>
             </div>
             <Spark points={weekL} height={36} />
           </div>
@@ -164,8 +164,8 @@ export default function WaterCard({ waterTotal, waterGoal, onAdd, onCustom, size
             <span className="tnum" style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 72, fontWeight: 400, color: 'var(--fb-blue)', lineHeight: 1 }}>{waterL.toFixed(2)}</span>
             <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 16, color: 'var(--fb-text-2)' }}>L</span>
           </div>
-          <div style={{ fontSize: 12, color: 'var(--fb-text-3)', marginTop: 2 }}>of {goalL.toFixed(1)}L</div>
-          <div style={{ fontSize: 11, color: 'var(--fb-blue)', fontWeight: 600 }}>{Math.max(0, goalL - waterL).toFixed(1)}L to goal</div>
+          <div style={{ fontSize: 12, color: 'var(--fb-text-3)', marginTop: 2 }}>of {goalL.toFixed(2)}L</div>
+          <div style={{ fontSize: 11, color: 'var(--fb-blue)', fontWeight: 600 }}>{Math.max(0, goalL - waterL).toFixed(2)}L to goal</div>
         </div>
         <div style={{ marginTop: 12 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9.5, color: 'var(--fb-text-3)', letterSpacing: 0.5, fontWeight: 600, textTransform: 'uppercase', marginBottom: 4 }}>
@@ -181,7 +181,7 @@ export default function WaterCard({ waterTotal, waterGoal, onAdd, onCustom, size
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9.5, color: 'var(--fb-text-3)', textTransform: 'uppercase', letterSpacing: 0.6, fontWeight: 600 }}>
           <span>Last 7 days</span>
-          <span className="tnum">avg {weekAvg.toFixed(1)}L</span>
+          <span className="tnum">avg {weekAvg.toFixed(2)}L</span>
         </div>
         <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'stretch' }}>
           <div style={{ maxWidth: 360, width: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -198,9 +198,9 @@ export default function WaterCard({ waterTotal, waterGoal, onAdd, onCustom, size
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingLeft: 18, borderLeft: '1px solid var(--fb-divider)' }}>
         <div style={{ fontSize: 9.5, color: 'var(--fb-text-3)', textTransform: 'uppercase', letterSpacing: 0.6, fontWeight: 600 }}>Settimana</div>
         {[
-          { l: 'Tot',        v: `${weekL.reduce((a,b)=>a+b,0).toFixed(1)}L` },
-          { l: 'Avg/giorno', v: `${weekAvg.toFixed(1)}L` },
-          { l: 'Best',       v: `${Math.max(...weekL, 0).toFixed(1)}L` },
+          { l: 'Tot',        v: `${weekL.reduce((a,b)=>a+b,0).toFixed(2)}L` },
+          { l: 'Avg/giorno', v: `${weekAvg.toFixed(2)}L` },
+          { l: 'Best',       v: `${Math.max(...weekL, 0).toFixed(2)}L` },
         ].map(s => (
           <div key={s.l} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
             <span style={{ color: 'var(--fb-text-3)' }}>{s.l}</span>

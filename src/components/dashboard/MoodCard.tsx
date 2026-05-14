@@ -197,7 +197,7 @@ export default function MoodCard({ size = 'M' }: { size?: WidgetSize }) {
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
               <span style={{ fontSize: 12 }}>{m.label}</span>
               <span style={{ fontSize: 10, color: 'var(--fb-text-3)', textTransform: 'uppercase', letterSpacing: 0.4, fontWeight: 600 }}>{m.name}</span>
-              <span style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--fb-text-3)' }} className="tnum">avg {avg(m.week).toFixed(1)}</span>
+              <span style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--fb-text-3)' }} className="tnum">avg {avg(m.week).toFixed(2)}</span>
             </div>
             <div style={{ flex: 1, minHeight: 0 }}>
               <Spark points={m.week} color={m.color} height={42} />

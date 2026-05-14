@@ -156,16 +156,20 @@ export default function EnergyBalanceCard({
         )}
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6, paddingTop: 10, borderTop: '1px solid var(--fb-divider)', marginTop: 'auto' }}>
+          <div style={{ background: 'var(--fb-bg-2)', border: '1px dashed var(--fb-border)', borderRadius: 7, padding: '6px 4px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }} title="Calcolato automaticamente — non modificabile">
+            <span style={{ fontSize: 8, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--fb-text-3)' }}>Resting</span>
+            <span className="tnum" style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 15, color: 'var(--fb-text-2)' }}>{restingKcal || '0'}</span>
+            {restingFromYest && <span style={{ fontSize: 7.5, color: 'var(--fb-accent)' }}>yesterday</span>}
+          </div>
           {[
-            { l: 'Resting', v: restingKcal || '0', hint: restingFromYest },
-            { l: 'Active',  v: activeKcal || '0', hint: false },
-            { l: 'Extra',   v: extraKcal || '0', hint: false },
-            { l: 'Steps',   v: steps || String(stepCount), hint: false },
-          ].map(s => (
-            <div key={s.l} style={{ background: 'var(--fb-bg-2)', border: '1px solid var(--fb-border)', borderRadius: 7, padding: '6px 4px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
-              <span style={{ fontSize: 8, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--fb-text-3)' }}>{s.l}</span>
-              <span className="tnum" style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 15, color: 'var(--fb-text)' }}>{s.v}</span>
-              {s.hint && <span style={{ fontSize: 7.5, color: 'var(--fb-accent)' }}>yesterday</span>}
+            { l: 'Active', value: activeKcal, onChange: onActiveChange },
+            { l: 'Extra',  value: extraKcal,  onChange: onExtraChange },
+            { l: 'Steps',  value: steps,      onChange: (v: string) => onStepsChange(v.replace(/[^0-9]/g, '')) },
+          ].map(inp => (
+            <div key={inp.l} style={{ background: 'var(--fb-bg-2)', border: '1px solid var(--fb-border)', borderRadius: 7, padding: '4px 4px 5px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+              <span style={{ fontSize: 8, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--fb-text-3)' }}>{inp.l}</span>
+              <input type="text" inputMode="decimal" value={inp.value} onChange={e => inp.onChange(e.target.value)} onBlur={onSave}
+                style={{ width: '100%', background: 'transparent', border: 'none', padding: 0, fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 15, color: 'var(--fb-text)', textAlign: 'center', outline: 'none' }} />
             </div>
           ))}
         </div>
@@ -227,17 +231,22 @@ export default function EnergyBalanceCard({
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, paddingLeft: 18, borderLeft: '1px solid var(--fb-divider)' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+          <label style={{ fontSize: 8.5, fontWeight: 700, letterSpacing: 0.7, textTransform: 'uppercase', color: 'var(--fb-text-3)' }}>Resting</label>
+          <div title="Calcolato automaticamente — non modificabile" style={{ width: '100%', background: 'var(--fb-bg-2)', border: '1px dashed var(--fb-border)', borderRadius: 6, padding: '6px 4px', fontSize: 12, color: 'var(--fb-text-2)', textAlign: 'center', fontFamily: 'var(--font-mono)' }}>
+            {restingKcal || '0'}
+          </div>
+          {restingFromYest && <span style={{ fontSize: 8.5, color: 'var(--fb-accent)' }}>yesterday</span>}
+        </div>
         {[
-          { l: 'Resting', value: restingKcal, onChange: onRestingChange, hint: restingFromYest },
-          { l: 'Active',  value: activeKcal,  onChange: onActiveChange,  hint: false },
-          { l: 'Extra',   value: extraKcal,   onChange: onExtraChange,   hint: false },
-          { l: 'Steps',   value: steps,       onChange: (v: string) => onStepsChange(v.replace(/[^0-9]/g, '')), hint: false },
+          { l: 'Active',  value: activeKcal,  onChange: onActiveChange },
+          { l: 'Extra',   value: extraKcal,   onChange: onExtraChange },
+          { l: 'Steps',   value: steps,       onChange: (v: string) => onStepsChange(v.replace(/[^0-9]/g, '')) },
         ].map((inp, idx) => (
           <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
             <label style={{ fontSize: 8.5, fontWeight: 700, letterSpacing: 0.7, textTransform: 'uppercase', color: 'var(--fb-text-3)' }}>{inp.l}</label>
             <input type="text" inputMode="decimal" value={inp.value} onChange={e => inp.onChange(e.target.value)} onBlur={onSave}
               style={{ width: '100%', background: 'var(--fb-bg-2)', border: '1px solid var(--fb-border)', borderRadius: 6, padding: '6px 4px', fontSize: 12, color: 'var(--fb-text)', textAlign: 'center', fontFamily: 'var(--font-mono)', outline: 'none' }} />
-            {inp.hint && <span style={{ fontSize: 8.5, color: 'var(--fb-accent)' }}>yesterday</span>}
           </div>
         ))}
       </div>

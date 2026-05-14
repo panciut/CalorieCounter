@@ -132,10 +132,10 @@ export default function AddFoodPanel({ onSaved, knownFoods, onFoodFound, default
     if (!kcal) { showToast(t('foods.presetNeedsKcal'), 'error'); return; }
     const p = PRESETS[key];
     patch({
-      fat:     String(Math.round(kcal * p.fatPct      / 9 * 10) / 10),
-      carbs:   String(Math.round(kcal * p.carbsPct    / 4 * 10) / 10),
-      fiber:   String(Math.round(kcal * p.fiberPer100 / 100 * 10) / 10),
-      protein: String(Math.round(kcal * p.proteinPct  / 4 * 10) / 10),
+      fat:     String(Math.round(kcal * p.fatPct      / 9 * 100) / 100),
+      carbs:   String(Math.round(kcal * p.carbsPct    / 4 * 100) / 100),
+      fiber:   String(Math.round(kcal * p.fiberPer100 / 100 * 100) / 100),
+      protein: String(Math.round(kcal * p.proteinPct  / 4 * 100) / 100),
     });
   }
 

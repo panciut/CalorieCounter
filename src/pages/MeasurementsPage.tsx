@@ -131,7 +131,7 @@ export default function MeasurementsPage() {
               if (data.length === 0) return null;
               const first = data[0].value;
               const last = data[data.length - 1].value;
-              const delta = +(last - first).toFixed(1);
+              const delta = +(last - first).toFixed(2);
               const deltaSign = delta > 0 ? '+' : '';
               const deltaCls =
                 data.length < 2 ? 'text-text-sec' :

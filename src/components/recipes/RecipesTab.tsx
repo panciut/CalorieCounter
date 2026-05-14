@@ -9,11 +9,12 @@ import { MEAL_ORDER, type ActualRecipe, type ActualRecipeIngredient, type Food, 
 import { useDeductionEvents } from '../../hooks/useDeductionEvents';
 import DeductionEventModal from '../DeductionEventModal';
 import { serifItalic, pillPrimary, pillGhost, EmptyState, MACRO_DOT, MacroChip } from '../../lib/fbUI';
+import { estimateCookedYield } from '../../lib/cookingYield';
 
 type PantryCheckResult = { can_make: boolean; missing: PantryIngredientCheck[] };
 
 function n(v: unknown) { return Math.round(Number(v) || 0); }
-function nf(v: unknown) { return Math.round((Number(v) || 0) * 10) / 10; }
+function nf(v: unknown) { return Math.round((Number(v) || 0) * 100) / 100; }
 
 function RecipesTab() {
   const { showToast } = useToast();
@@ -466,12 +467,57 @@ function RecipeDetailModal({ detail: initialDetail, foods, onClose, onSave }: {
             onChange={e => setDetail(d => ({ ...d, description: e.target.value }))} placeholder="Description (optional)" />
         </div>
 
+        {/* Yield — fundamental for logging by total weight */}
+        {(() => {
+          const est = estimateCookedYield((detail.ingredients ?? []).map(i => {
+            const f = foodsById.get(i.food_id);
+            return { name: i.name, grams: i.grams, is_liquid: f?.is_liquid };
+          }));
+          const canEstimate = (detail.ingredients ?? []).length > 0;
+          return (
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
+              background: detail.yield_g > 0 ? 'var(--fb-bg)' : 'color-mix(in srgb, var(--fb-amber) 10%, transparent)',
+              border: `1px solid ${detail.yield_g > 0 ? 'var(--fb-border)' : 'var(--fb-amber)'}`,
+              borderRadius: 12, padding: '10px 14px',
+            }}>
+              <div style={{ flex: 1, minWidth: 180 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.2, textTransform: 'uppercase', color: detail.yield_g > 0 ? 'var(--fb-accent)' : 'var(--fb-amber)', marginBottom: 2 }}>
+                  Cooked yield {detail.yield_g > 0 ? '' : '— required'}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--fb-text-3)' }}>
+                  Total cooked weight. Needed to log by grams eaten and scale ingredients.
+                </div>
+              </div>
+              {canEstimate && (
+                <button
+                  type="button"
+                  onClick={() => setDetail(d => ({ ...d, yield_g: est.total_g }))}
+                  title={`Estimate from ${est.matched_count}/${est.total_count} recognized ingredients`}
+                  style={{ fontSize: 11, fontWeight: 600, padding: '6px 12px', borderRadius: 99, border: '1px dashed var(--fb-border-strong)', background: 'transparent', color: 'var(--fb-text-2)', cursor: 'pointer' }}
+                >
+                  Estimate ≈ {est.total_g}g
+                </button>
+              )}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                <input type="text" inputMode="decimal"
+                  className="tnum"
+                  style={{ width: 80, textAlign: 'right', borderRadius: 8, border: '1px solid var(--fb-border-strong)', background: 'var(--fb-card)', padding: '6px 10px', fontSize: 14, fontWeight: 600, color: 'var(--fb-text)', outline: 'none' }}
+                  value={detail.yield_g || ''}
+                  placeholder="e.g. 800"
+                  onChange={e => setDetail(d => ({ ...d, yield_g: parseFloat(e.target.value) || 0 }))} />
+                <span style={{ fontSize: 12, color: 'var(--fb-text-3)', fontWeight: 600 }}>g</span>
+              </div>
+            </div>
+          );
+        })()}
+
         {/* Macro totals bar */}
         <div className="flex flex-wrap gap-4 text-xs text-text-sec bg-bg rounded-lg px-4 py-3 tabular-nums">
           <span><span className="text-text font-semibold text-sm">{Math.round(totals.cal)}</span> kcal</span>
-          <span>P <span className="text-text font-medium">{Math.round(totals.protein * 10) / 10}</span>g</span>
-          <span>C <span className="text-text font-medium">{Math.round(totals.carbs * 10) / 10}</span>g</span>
-          <span>F <span className="text-text font-medium">{Math.round(totals.fat * 10) / 10}</span>g</span>
+          <span>P <span className="text-text font-medium">{Math.round(totals.protein * 100) / 100}</span>g</span>
+          <span>C <span className="text-text font-medium">{Math.round(totals.carbs * 100) / 100}</span>g</span>
+          <span>F <span className="text-text font-medium">{Math.round(totals.fat * 100) / 100}</span>g</span>
           {totalRawGrams > 0 && <span className="ml-auto">Raw {Math.round(totalRawGrams)}g</span>}
           <span className={(totalRawGrams > 0 ? '' : 'ml-auto')}>{(detail.ingredients ?? []).length} ingredients</span>
         </div>
@@ -527,13 +573,7 @@ function RecipeDetailModal({ detail: initialDetail, foods, onClose, onSave }: {
         {/* Details tab */}
         {tab === 'details' && (
           <div className="space-y-4">
-            <div className="grid grid-cols-3 gap-3">
-              <div className="space-y-1">
-                <label className="text-xs text-text-sec">Yield (g cooked)</label>
-                <input type="text" inputMode="decimal" className={inputCls} value={detail.yield_g || ''}
-                  placeholder="e.g. 800"
-                  onChange={e => setDetail(d => ({ ...d, yield_g: parseFloat(e.target.value) || 0 }))} />
-              </div>
+            <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <label className="text-xs text-text-sec">Prep time (min)</label>
                 <input type="text" inputMode="decimal" className={inputCls} value={detail.prep_time_min || ''}
@@ -600,7 +640,7 @@ function RecipeCreateModal({ foods, onClose, onCreate }: {
       const idx = prev.findIndex(x => x.food_id === food.id);
       if (idx >= 0) {
         const next = [...prev];
-        next[idx] = { ...next[idx], grams: Math.round((next[idx].grams + g) * 10) / 10 };
+        next[idx] = { ...next[idx], grams: Math.round((next[idx].grams + g) * 100) / 100 };
         return next;
       }
       return [...prev, { food_id: food.id, name: food.name, grams: g }];
@@ -641,12 +681,56 @@ function RecipeCreateModal({ foods, onClose, onCreate }: {
           <input className={inputCls} placeholder="Description (optional)" value={desc} onChange={e => setDesc(e.target.value)} />
         </div>
 
+        {/* Yield — fundamental for logging by total weight */}
+        {(() => {
+          const yNum = parseFloat(yieldG) || 0;
+          const est = estimateCookedYield(ingredients.map(i => {
+            const f = foodsById.get(i.food_id);
+            return { name: i.name, grams: i.grams, is_liquid: f?.is_liquid };
+          }));
+          const canEstimate = ingredients.length > 0;
+          return (
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
+              background: yNum > 0 ? 'var(--fb-bg)' : 'color-mix(in srgb, var(--fb-amber) 10%, transparent)',
+              border: `1px solid ${yNum > 0 ? 'var(--fb-border)' : 'var(--fb-amber)'}`,
+              borderRadius: 12, padding: '10px 14px',
+            }}>
+              <div style={{ flex: 1, minWidth: 180 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.2, textTransform: 'uppercase', color: yNum > 0 ? 'var(--fb-accent)' : 'var(--fb-amber)', marginBottom: 2 }}>
+                  Cooked yield {yNum > 0 ? '' : '— required'}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--fb-text-3)' }}>
+                  Total cooked weight. Needed to log by grams eaten and scale ingredients.
+                </div>
+              </div>
+              {canEstimate && (
+                <button
+                  type="button"
+                  onClick={() => setYieldG(String(est.total_g))}
+                  title={`Estimate from ${est.matched_count}/${est.total_count} recognized ingredients`}
+                  style={{ fontSize: 11, fontWeight: 600, padding: '6px 12px', borderRadius: 99, border: '1px dashed var(--fb-border-strong)', background: 'transparent', color: 'var(--fb-text-2)', cursor: 'pointer' }}
+                >
+                  Estimate ≈ {est.total_g}g
+                </button>
+              )}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                <input type="text" inputMode="decimal"
+                  className="tnum"
+                  style={{ width: 80, textAlign: 'right', borderRadius: 8, border: '1px solid var(--fb-border-strong)', background: 'var(--fb-card)', padding: '6px 10px', fontSize: 14, fontWeight: 600, color: 'var(--fb-text)', outline: 'none' }}
+                  placeholder="e.g. 800" value={yieldG} onChange={e => setYieldG(e.target.value)} />
+                <span style={{ fontSize: 12, color: 'var(--fb-text-3)', fontWeight: 600 }}>g</span>
+              </div>
+            </div>
+          );
+        })()}
+
         {/* Macro totals bar */}
         <div className="flex flex-wrap gap-4 text-xs text-text-sec bg-bg rounded-lg px-4 py-3 tabular-nums">
           <span><span className="text-text font-semibold text-sm">{Math.round(totals.cal)}</span> kcal</span>
-          <span>P <span className="text-text font-medium">{Math.round(totals.protein * 10) / 10}</span>g</span>
-          <span>C <span className="text-text font-medium">{Math.round(totals.carbs * 10) / 10}</span>g</span>
-          <span>F <span className="text-text font-medium">{Math.round(totals.fat * 10) / 10}</span>g</span>
+          <span>P <span className="text-text font-medium">{Math.round(totals.protein * 100) / 100}</span>g</span>
+          <span>C <span className="text-text font-medium">{Math.round(totals.carbs * 100) / 100}</span>g</span>
+          <span>F <span className="text-text font-medium">{Math.round(totals.fat * 100) / 100}</span>g</span>
           <span className="ml-auto">{ingredients.length} {ingredients.length === 1 ? 'ingredient' : 'ingredients'}</span>
         </div>
 
@@ -705,11 +789,7 @@ function RecipeCreateModal({ foods, onClose, onCreate }: {
         {/* Details tab */}
         {tab === 'details' && (
           <div className="space-y-4">
-            <div className="grid grid-cols-3 gap-3">
-              <div className="space-y-1">
-                <label className="text-xs text-text-sec">Yield (g cooked)</label>
-                <input type="text" inputMode="decimal" className={inputCls} placeholder="e.g. 800" value={yieldG} onChange={e => setYieldG(e.target.value)} />
-              </div>
+            <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <label className="text-xs text-text-sec">Prep time (min)</label>
                 <input type="text" inputMode="decimal" className={inputCls} placeholder="e.g. 15" value={prepTime} onChange={e => setPrepTime(e.target.value)} />
@@ -754,8 +834,8 @@ function RecipeCreateModal({ foods, onClose, onCreate }: {
               tools, procedure,
               ingredients,
             })}
-            disabled={!name || ingredients.length === 0}
-            style={{ display: 'inline-flex', alignItems: 'center', background: 'var(--fb-accent)', color: 'white', border: 0, padding: '7px 14px', borderRadius: 7, fontSize: 12.5, fontWeight: 600, fontFamily: 'var(--font-body)', cursor: 'pointer', opacity: (!name || ingredients.length === 0) ? 0.4 : 1 }}
+            disabled={!name || ingredients.length === 0 || !(parseFloat(yieldG) > 0)}
+            style={{ display: 'inline-flex', alignItems: 'center', background: 'var(--fb-accent)', color: 'white', border: 0, padding: '7px 14px', borderRadius: 7, fontSize: 12.5, fontWeight: 600, fontFamily: 'var(--font-body)', cursor: 'pointer', opacity: (!name || ingredients.length === 0 || !(parseFloat(yieldG) > 0)) ? 0.4 : 1 }}
           >Create</button>
         </div>
       </div>

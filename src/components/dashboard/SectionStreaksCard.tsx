@@ -11,8 +11,9 @@ const SECTION_META: Record<string, { icon: string; label: string; page: PageName
   workout: { icon: '💪', label: 'Workout', page: 'exercise' },
 };
 
-function flameColor(streak: number): string {
+function flameColor(streak: number, completedToday = true): string {
   if (streak === 0) return '#6b7280';
+  if (!completedToday) return '#9ca3af';
   if (streak < 7)   return '#f97316';
   if (streak < 30)  return '#f59e0b';
   return '#ef4444';
@@ -28,17 +29,19 @@ export default function SectionStreaksCard({ size = 'M' }: { size?: WidgetSize }
 
   if (streaks.length === 0) return null;
   const best = Math.max(...streaks.map(s => s.current_streak));
+  const anyKeptToday = streaks.some(s => s.completed_today);
+  const flameDim = '#9ca3af';
 
   // ── XS ────────────────────────────────────────────────────────────────────
   if (size === 'XS') {
     return (
       <div style={{ ...cardOuter, height: '100%', padding: 12, alignItems: 'center', justifyContent: 'center', gap: 4 }}>
         <span style={{ ...eyebrow, fontSize: 8.5 }}>Streak</span>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
-          <span style={{ fontSize: 24 }}>🔥</span>
-          <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 28, color: 'var(--fb-text)' }}>{best}</span>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, opacity: anyKeptToday ? 1 : 0.5 }}>
+          <span style={{ fontSize: 24, filter: anyKeptToday ? 'none' : 'grayscale(1)' }}>🔥</span>
+          <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 28, color: anyKeptToday ? 'var(--fb-text)' : flameDim }}>{best}</span>
         </div>
-        <span style={{ fontSize: 9, color: 'var(--fb-text-3)' }}>{streaks.filter(s => s.current_streak > 0).length}/4 active</span>
+        <span style={{ fontSize: 9, color: 'var(--fb-text-3)' }}>{streaks.filter(s => s.completed_today).length}/4 kept today</span>
       </div>
     );
   }
@@ -51,19 +54,20 @@ export default function SectionStreaksCard({ size = 'M' }: { size?: WidgetSize }
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gridTemplateRows: '1fr 1fr', gap: 6 }}>
           {streaks.map(s => {
             const meta = SECTION_META[s.section];
-            const active = s.current_streak > 0;
+            const kept = s.completed_today;
+            const has = s.current_streak > 0;
             return (
               <button key={s.section} onClick={() => navigate(meta?.page ?? 'dashboard')}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 5, padding: '5px 8px',
-                  background: active ? 'color-mix(in srgb, var(--fb-accent) 10%, transparent)' : 'var(--fb-bg-2)',
-                  border: `1px solid ${active ? 'var(--fb-accent)' : 'var(--fb-border)'}`,
+                  background: kept ? 'color-mix(in srgb, var(--fb-accent) 10%, transparent)' : 'var(--fb-bg-2)',
+                  border: `1px solid ${kept ? 'var(--fb-accent)' : 'var(--fb-border)'}`,
                   borderRadius: 8, cursor: 'pointer',
                 }}>
-                <span style={{ fontSize: 13 }}>{meta?.icon}</span>
+                <span style={{ fontSize: 13, filter: kept || !has ? 'none' : 'grayscale(1)', opacity: kept || !has ? 1 : 0.7 }}>{meta?.icon}</span>
                 <span style={{ flex: 1, fontSize: 10, color: 'var(--fb-text-2)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'left' }}>{meta?.label}</span>
-                <span style={{ fontSize: 11 }}>🔥</span>
-                <span style={{ fontSize: 12, fontWeight: 700, color: flameColor(s.current_streak) }} className="tnum">{s.current_streak}</span>
+                <span style={{ fontSize: 11, filter: kept ? 'none' : 'grayscale(1)', opacity: kept ? 1 : 0.55 }}>🔥</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: flameColor(s.current_streak, kept) }} className="tnum">{s.current_streak}</span>
               </button>
             );
           })}
@@ -78,26 +82,26 @@ export default function SectionStreaksCard({ size = 'M' }: { size?: WidgetSize }
       <div style={{ ...cardOuter, height: '100%', padding: 16, gap: 12, justifyContent: 'flex-start', overflow: 'hidden' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={eyebrow}>Streaks · 4 sezioni</span>
-          <span style={{ fontSize: 11, color: 'var(--fb-text-3)' }}>{streaks.filter(s => s.current_streak > 0).length}/4 attive</span>
+          <span style={{ fontSize: 11, color: 'var(--fb-text-3)' }}>{streaks.filter(s => s.completed_today).length}/4 kept oggi</span>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 6 }}>
           {streaks.map(s => {
             const meta = SECTION_META[s.section];
-            const active = s.current_streak > 0;
+            const kept = s.completed_today;
             return (
               <button key={s.section} onClick={() => navigate(meta?.page ?? 'dashboard')}
                 style={{
                   display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, padding: '8px 4px',
-                  background: active ? 'color-mix(in srgb, var(--fb-accent) 8%, transparent)' : 'var(--fb-bg-2)',
-                  border: `1px solid ${active ? 'var(--fb-accent)' : 'var(--fb-border)'}`,
+                  background: kept ? 'color-mix(in srgb, var(--fb-accent) 8%, transparent)' : 'var(--fb-bg-2)',
+                  border: `1px solid ${kept ? 'var(--fb-accent)' : 'var(--fb-border)'}`,
                   borderRadius: 10, cursor: 'pointer',
                 }}>
-                <span style={{ fontSize: 16 }}>{meta?.icon}</span>
+                <span style={{ fontSize: 16, filter: kept ? 'none' : 'grayscale(0.6)', opacity: kept ? 1 : 0.85 }}>{meta?.icon}</span>
                 <span style={{ fontSize: 9, color: 'var(--fb-text-3)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 700 }}>{meta?.label}</span>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 2 }}>
-                  <span style={{ fontSize: 12 }}>🔥</span>
-                  <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 20, color: flameColor(s.current_streak) }}>{s.current_streak}</span>
+                  <span style={{ fontSize: 12, filter: kept ? 'none' : 'grayscale(1)', opacity: kept ? 1 : 0.55 }}>🔥</span>
+                  <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 20, color: flameColor(s.current_streak, kept) }}>{s.current_streak}</span>
                 </div>
                 <span style={{ fontSize: 8.5, color: 'var(--fb-text-3)' }}>best {s.longest_streak}</span>
               </button>
@@ -112,20 +116,27 @@ export default function SectionStreaksCard({ size = 'M' }: { size?: WidgetSize }
           </div>
           {streaks.map(s => {
             const meta = SECTION_META[s.section];
+            const kept = s.completed_today;
             const days = Array.from({ length: 14 }, (_, i) => i >= 14 - s.current_streak ? 1 : 0);
+            const todayIdx = 13;
             return (
               <div key={s.section} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span style={{ fontSize: 12, width: 16 }}>{meta?.icon}</span>
                 <div style={{ flex: 1, display: 'flex', gap: 2 }}>
-                  {days.map((d, i) => (
-                    <div key={i} style={{
-                      flex: 1, height: 14, borderRadius: 2,
-                      background: d ? flameColor(s.current_streak) : 'var(--fb-border-strong, var(--fb-border))',
-                      opacity: d ? (i >= 14 - s.current_streak ? 1 : 0.55) : 0.5,
-                    }} />
-                  ))}
+                  {days.map((d, i) => {
+                    const isToday = i === todayIdx;
+                    const lit = d && (!isToday || kept);
+                    return (
+                      <div key={i} style={{
+                        flex: 1, height: 14, borderRadius: 2,
+                        background: lit ? flameColor(s.current_streak, kept) : 'var(--fb-border-strong, var(--fb-border))',
+                        opacity: lit ? (i >= 14 - s.current_streak ? 1 : 0.55) : (isToday && d ? 0.85 : 0.5),
+                        outline: isToday && !kept && d ? '1px dashed var(--fb-border-strong)' : 'none',
+                      }} />
+                    );
+                  })}
                 </div>
-                <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 11, color: flameColor(s.current_streak) }} className="tnum">{s.current_streak}</span>
+                <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 11, color: flameColor(s.current_streak, kept) }} className="tnum">{s.current_streak}</span>
               </div>
             );
           })}
@@ -142,19 +153,23 @@ export default function SectionStreaksCard({ size = 'M' }: { size?: WidgetSize }
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
           {streaks.map(s => {
             const meta = SECTION_META[s.section];
-            const active = s.current_streak > 0;
+            const kept = s.completed_today;
+            const has = s.current_streak > 0;
             return (
               <button key={s.section} onClick={() => navigate(meta?.page ?? 'dashboard')} style={{
                 display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px',
-                background: active ? 'color-mix(in srgb, var(--fb-accent) 8%, transparent)' : 'var(--fb-bg-2)',
-                border: `1px solid ${active ? 'var(--fb-accent)' : 'var(--fb-border)'}`,
+                background: kept ? 'color-mix(in srgb, var(--fb-accent) 8%, transparent)' : 'var(--fb-bg-2)',
+                border: `1px solid ${kept ? 'var(--fb-accent)' : 'var(--fb-border)'}`,
                 borderRadius: 10, cursor: 'pointer',
-              }}>
-                <span style={{ fontSize: 18 }}>{meta?.icon}</span>
+                position: 'relative',
+              }} title={has && !kept ? 'Streak da mantenere oggi' : undefined}>
+                <span style={{ fontSize: 18, filter: kept || !has ? 'none' : 'grayscale(0.7)', opacity: kept || !has ? 1 : 0.85 }}>{meta?.icon}</span>
                 <span style={{ flex: 1, fontSize: 12, fontWeight: 600, color: 'var(--fb-text)', textAlign: 'left' }}>{meta?.label}</span>
-                <span style={{ fontSize: 14 }}>🔥</span>
-                <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 22, color: flameColor(s.current_streak) }}>{s.current_streak}</span>
-                <span style={{ fontSize: 9, color: 'var(--fb-text-3)', minWidth: 36, textAlign: 'right' }}>best {s.longest_streak}</span>
+                <span style={{ fontSize: 14, filter: kept ? 'none' : 'grayscale(1)', opacity: kept ? 1 : 0.5 }}>🔥</span>
+                <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 22, color: flameColor(s.current_streak, kept) }}>{s.current_streak}</span>
+                <span style={{ fontSize: 9, color: 'var(--fb-text-3)', minWidth: 36, textAlign: 'right' }}>
+                  {has && !kept ? <span style={{ color: 'var(--fb-text-3)', fontWeight: 600 }}>da fare</span> : `best ${s.longest_streak}`}
+                </span>
               </button>
             );
           })}
@@ -178,7 +193,9 @@ export default function SectionStreaksCard({ size = 'M' }: { size?: WidgetSize }
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 5, minHeight: 0 }}>
           {streaks.map(s => {
             const meta = SECTION_META[s.section];
+            const kept = s.completed_today;
             const days = Array.from({ length: 21 }, (_, i) => i >= 21 - s.current_streak ? 1 : 0);
+            const todayIdx = 20;
             return (
               <div key={s.section} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 5, width: 88 }}>
@@ -186,13 +203,18 @@ export default function SectionStreaksCard({ size = 'M' }: { size?: WidgetSize }
                   <span style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--fb-text-2)' }}>{meta?.label}</span>
                 </div>
                 <div style={{ flex: 1, display: 'flex', gap: 3 }}>
-                  {days.map((d, i) => (
-                    <div key={i} style={{
-                      flex: 1, height: 22, borderRadius: 3,
-                      background: d ? flameColor(s.current_streak) : 'var(--fb-border-strong, var(--fb-border))',
-                      opacity: d ? (i >= 21 - s.current_streak ? 1 : 0.45) : 0.6,
-                    }} />
-                  ))}
+                  {days.map((d, i) => {
+                    const isToday = i === todayIdx;
+                    const lit = d && (!isToday || kept);
+                    return (
+                      <div key={i} style={{
+                        flex: 1, height: 22, borderRadius: 3,
+                        background: lit ? flameColor(s.current_streak, kept) : 'var(--fb-border-strong, var(--fb-border))',
+                        opacity: lit ? (i >= 21 - s.current_streak ? 1 : 0.45) : (isToday && d ? 0.85 : 0.6),
+                        outline: isToday && !kept && d ? '1px dashed var(--fb-border-strong)' : 'none',
+                      }} />
+                    );
+                  })}
                 </div>
               </div>
             );

@@ -61,7 +61,7 @@ export default function EntryTable({ entries, foods, onRefresh, onConfirm }: Ent
       Array.from(merged.entries()).map(([food_id, v]) => ({
         food_id,
         name: v.name,
-        gramsStr: String(Math.round(v.grams * 10) / 10),
+        gramsStr: String(Math.round(v.grams * 100) / 100),
       })),
     );
   }
@@ -77,7 +77,7 @@ export default function EntryTable({ entries, foods, onRefresh, onConfirm }: Ent
     const ingredients = bundleItems
       .map(it => ({ food_id: it.food_id, grams: parseFloat(it.gramsStr) }))
       .filter(it => !isNaN(it.grams) && it.grams > 0)
-      .map(it => ({ food_id: it.food_id, grams: Math.round(it.grams * 10) / 10 }));
+      .map(it => ({ food_id: it.food_id, grams: Math.round(it.grams * 100) / 100 }));
     if (!ingredients.length) return;
     await api.recipes.create({ name: bundleName.trim(), description: '', ingredients });
     showToast(t('entry.bundleSaved'));
@@ -100,10 +100,10 @@ export default function EntryTable({ entries, foods, onRefresh, onConfirm }: Ent
     }
     return {
       cal: Math.round(cal),
-      protein: Math.round(protein * 10) / 10,
-      carbs: Math.round(carbs * 10) / 10,
-      fat: Math.round(fat * 10) / 10,
-      fiber: Math.round(fiber * 10) / 10,
+      protein: Math.round(protein * 100) / 100,
+      carbs: Math.round(carbs * 100) / 100,
+      fat: Math.round(fat * 100) / 100,
+      fiber: Math.round(fiber * 100) / 100,
     };
   }
 
@@ -128,7 +128,7 @@ export default function EntryTable({ entries, foods, onRefresh, onConfirm }: Ent
       fiber   += e.fiber || 0;
       if (foodsById.get(e.food_id)?.is_liquid) liquidMl += e.grams;
     }
-    return { cal: Math.round(cal), protein: Math.round(protein * 10) / 10, carbs: Math.round(carbs * 10) / 10, fat: Math.round(fat * 10) / 10, fiber: Math.round(fiber * 10) / 10, liquidMl: Math.round(liquidMl) };
+    return { cal: Math.round(cal), protein: Math.round(protein * 100) / 100, carbs: Math.round(carbs * 100) / 100, fat: Math.round(fat * 100) / 100, fiber: Math.round(fiber * 100) / 100, liquidMl: Math.round(liquidMl) };
   }
 
   async function handleDelete(id: number) {
@@ -156,7 +156,7 @@ export default function EntryTable({ entries, foods, onRefresh, onConfirm }: Ent
       id: e.id,
       food_id: e.food_id,
       origGrams: e.grams,
-      gramsStr: String(Math.round(e.grams * 10) / 10),
+      gramsStr: String(Math.round(e.grams * 100) / 100),
       piecesStr: hasUnits ? String(Math.round((e.grams / size) * 100) / 100) : '',
       meal: e.meal as Meal,
       mode: hasUnits ? 'pieces' : 'grams',
@@ -197,7 +197,7 @@ export default function EntryTable({ entries, foods, onRefresh, onConfirm }: Ent
                         <span className="ml-1.5 text-[10px] text-accent border border-accent/40 rounded px-1 py-0.5">plan</span>
                       )}
                     </td>
-                    <td className="py-1.5 text-right tabular-nums">{Math.round(e.grams * 10) / 10}</td>
+                    <td className="py-1.5 text-right tabular-nums">{Math.round(e.grams * 100) / 100}</td>
                     <td className="py-1.5 text-right tabular-nums">{e.calories}</td>
                     <td className="py-1.5 text-right tabular-nums text-text-sec">{e.fat}g</td>
                     <td className="py-1.5 text-right tabular-nums text-text-sec">{e.carbs}g</td>
@@ -258,7 +258,7 @@ export default function EntryTable({ entries, foods, onRefresh, onConfirm }: Ent
                                     setEditing({
                                       ...editing,
                                       piecesStr: v,
-                                      gramsStr: !v.trim() || isNaN(n) ? '' : String(Math.round(n * pieceG * 10) / 10),
+                                      gramsStr: !v.trim() || isNaN(n) ? '' : String(Math.round(n * pieceG * 100) / 100),
                                     });
                                   }}
                                   className={inputCls}
@@ -301,7 +301,7 @@ export default function EntryTable({ entries, foods, onRefresh, onConfirm }: Ent
                                         ...editing,
                                         mode: 'pieces',
                                         piecesStr: String(pcs),
-                                        gramsStr: String(Math.round(pcs * pieceG * 10) / 10),
+                                        gramsStr: String(Math.round(pcs * pieceG * 100) / 100),
                                       });
                                     }}
                                     className="text-xs text-text-sec border border-border rounded px-2 py-1 hover:border-accent/50 hover:text-text cursor-pointer"
@@ -325,7 +325,7 @@ export default function EntryTable({ entries, foods, onRefresh, onConfirm }: Ent
                                       setEditing({
                                         ...editing,
                                         packId: pkg.id,
-                                        gramsStr: String(Math.round(pcs * pkg.grams * 10) / 10),
+                                        gramsStr: String(Math.round(pcs * pkg.grams * 100) / 100),
                                       });
                                     }}
                                     className={`px-2 py-1 rounded border cursor-pointer ${

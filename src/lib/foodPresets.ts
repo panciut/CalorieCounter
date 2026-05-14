@@ -10,10 +10,10 @@ export type PresetKey = keyof typeof PRESETS;
 
 export function macrosFromPreset(kcal: number, preset: typeof PRESETS[PresetKey]) {
   return {
-    fat:     Math.round(kcal * preset.fatPct     / 9 * 10) / 10,
-    carbs:   Math.round(kcal * preset.carbsPct   / 4 * 10) / 10,
-    protein: Math.round(kcal * preset.proteinPct / 4 * 10) / 10,
-    fiber:   Math.round(kcal * preset.fiberPer100 / 100 * 10) / 10,
+    fat:     Math.round(kcal * preset.fatPct     / 9 * 100) / 100,
+    carbs:   Math.round(kcal * preset.carbsPct   / 4 * 100) / 100,
+    protein: Math.round(kcal * preset.proteinPct / 4 * 100) / 100,
+    fiber:   Math.round(kcal * preset.fiberPer100 / 100 * 100) / 100,
   };
 }
 

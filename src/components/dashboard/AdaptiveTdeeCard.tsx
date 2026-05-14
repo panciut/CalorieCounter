@@ -82,7 +82,7 @@ export default function AdaptiveTdeeCard({ result, calRec, onApply, onDismiss, o
         <span style={{ fontSize: 9, color: 'var(--fb-text-3)' }}>kcal/day</span>
         {avgIntake > 0 && (
           <div style={{ marginTop: 3, padding: '2px 7px', borderRadius: 99, background: `color-mix(in srgb, ${deltaColor} 14%, transparent)`, color: deltaColor, fontWeight: 700, fontSize: 10 }}>
-            {kgPerWeek > 0 ? '+' : ''}{kgPerWeek.toFixed(1)} kg/w
+            {kgPerWeek > 0 ? '+' : ''}{kgPerWeek.toFixed(2)} kg/w
           </div>
         )}
       </div>
@@ -122,7 +122,7 @@ export default function AdaptiveTdeeCard({ result, calRec, onApply, onDismiss, o
               </div>
             </div>
             <div style={{ textAlign: 'center', fontSize: 10.5, color: deltaColor, fontWeight: 600 }}>
-              <span className="tnum">Δ {delta > 0 ? '+' : ''}{delta}</span> → <span className="tnum">{kgPerWeek > 0 ? '+' : ''}{kgPerWeek.toFixed(1)} kg/sett</span>
+              <span className="tnum">Δ {delta > 0 ? '+' : ''}{delta}</span> → <span className="tnum">{kgPerWeek > 0 ? '+' : ''}{kgPerWeek.toFixed(2)} kg/sett</span>
             </div>
           </>
         )}
@@ -172,7 +172,7 @@ export default function AdaptiveTdeeCard({ result, calRec, onApply, onDismiss, o
               <span style={{ fontSize: 18, color: deltaColor }}>→</span>
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontSize: 8.5, color: 'var(--fb-text-3)', textTransform: 'uppercase', letterSpacing: 0.6, fontWeight: 700 }}>Proiezione</div>
-                <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 20, color: deltaColor }}>{kgPerWeek > 0 ? '+' : ''}{kgPerWeek.toFixed(1)}<span style={{ fontSize: 10, color: 'var(--fb-text-3)' }}> kg/sett</span></div>
+                <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 20, color: deltaColor }}>{kgPerWeek > 0 ? '+' : ''}{kgPerWeek.toFixed(2)}<span style={{ fontSize: 10, color: 'var(--fb-text-3)' }}> kg/sett</span></div>
               </div>
             </div>
           </>
@@ -237,7 +237,7 @@ export default function AdaptiveTdeeCard({ result, calRec, onApply, onDismiss, o
                 <span style={{ fontSize: 18, color: deltaColor }}>→</span>
                 <div style={{ textAlign: 'right' }}>
                   <div style={{ fontSize: 8.5, color: 'var(--fb-text-3)', textTransform: 'uppercase', letterSpacing: 0.6, fontWeight: 700 }}>Weight</div>
-                  <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 22, color: deltaColor }}>{kgPerWeek > 0 ? '+' : ''}{kgPerWeek.toFixed(1)} <span style={{ fontSize: 11 }}>kg/w</span></div>
+                  <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 22, color: deltaColor }}>{kgPerWeek > 0 ? '+' : ''}{kgPerWeek.toFixed(2)} <span style={{ fontSize: 11 }}>kg/w</span></div>
                 </div>
               </div>
             </div>
@@ -270,7 +270,7 @@ export default function AdaptiveTdeeCard({ result, calRec, onApply, onDismiss, o
             <div key={p.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', background: 'var(--fb-bg-2)', border: '1px solid var(--fb-border)', borderRadius: 8 }}>
               <span style={{ fontSize: 10.5, color: 'var(--fb-text-2)', fontWeight: 600 }}>{p.label}</span>
               <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 18, color: p.kg < 0 ? 'var(--fb-green)' : p.kg > 0 ? 'var(--fb-orange)' : 'var(--fb-text)' }}>
-                {p.kg > 0 ? '+' : ''}{p.kg.toFixed(1)} <span style={{ fontSize: 10, color: 'var(--fb-text-3)' }}>kg</span>
+                {p.kg > 0 ? '+' : ''}{p.kg.toFixed(2)} <span style={{ fontSize: 10, color: 'var(--fb-text-3)' }}>kg</span>
               </span>
             </div>
           ))}
