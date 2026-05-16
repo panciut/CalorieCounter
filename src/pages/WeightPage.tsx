@@ -21,6 +21,35 @@ function colorForScaleId(id: number | null | undefined): string {
   return `hsl(${hue}, 70%, 55%)`;
 }
 
+function LegendChip({
+  active, onClick, swatch, label,
+}: {
+  active: boolean;
+  onClick?: () => void;
+  swatch: React.ReactNode;
+  label: string;
+}) {
+  const clickable = onClick != null;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={!clickable}
+      className={
+        `flex items-center gap-1.5 px-2 py-1 rounded-md border transition-all ` +
+        (active
+          ? 'border-border bg-card text-text'
+          : 'border-border/40 text-text-sec opacity-50') +
+        (clickable ? ' hover:border-accent/50 hover:opacity-100 cursor-pointer' : ' cursor-default')
+      }
+      aria-pressed={active}
+    >
+      <span className={active ? '' : 'grayscale opacity-60'}>{swatch}</span>
+      <span>{label}</span>
+    </button>
+  );
+}
+
 type Tab = 'weight' | 'body';
 
 export default function WeightPage() {
@@ -29,6 +58,15 @@ export default function WeightPage() {
   const { showToast } = useToast();
   const [tab, setTab] = useState<Tab>('weight');
   const [range, setRange] = useState<30 | 90 | 180 | 365 | 'all'>(180);
+  const [showTrend, setShowTrend] = useState<boolean>(() => localStorage.getItem('weightShowTrend') !== '0');
+  const [showMA,    setShowMA]    = useState<boolean>(() => localStorage.getItem('weightShowMA')    !== '0');
+  const [showGoal,  setShowGoal]  = useState<boolean>(() => localStorage.getItem('weightShowGoal')  !== '0');
+
+  function toggleSeries(key: 'trend' | 'ma' | 'goal') {
+    if (key === 'trend') { setShowTrend(v => { localStorage.setItem('weightShowTrend', v ? '0' : '1'); return !v; }); }
+    if (key === 'ma')    { setShowMA   (v => { localStorage.setItem('weightShowMA',    v ? '0' : '1'); return !v; }); }
+    if (key === 'goal')  { setShowGoal (v => { localStorage.setItem('weightShowGoal',  v ? '0' : '1'); return !v; }); }
+  }
 
   const [entries, setEntries] = useState<WeightEntry[]>([]);
   const [date, setDate]       = useState(today());
@@ -162,10 +200,34 @@ export default function WeightPage() {
 
   const prediction = getPrediction();
 
-  const chartData = [...entries]
+  const filteredSorted = [...entries]
     .filter(e => inRange(e.date))
-    .sort((a, b) => a.date.localeCompare(b.date))
-    .map(e => ({ label: formatShortDate(e.date), date: e.date, value: e.weight, color: colorForScaleId(e.scale_id) }));
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  // Triangular-weighted centered 7-day moving average: at each entry's date,
+  // average all entries within ±3 days, weighting closer dates more heavily.
+  // Missing logs simply contribute 0 weight, so gaps don't bias the result.
+  const maValues = filteredSorted.map(e => {
+    const center = new Date(e.date).getTime();
+    let sum = 0;
+    let wSum = 0;
+    for (const q of filteredSorted) {
+      const delta = Math.abs((new Date(q.date).getTime() - center) / MS_PER_DAY);
+      if (delta > 3) continue;
+      const w = 1 - delta / 4;
+      sum  += q.weight * w;
+      wSum += w;
+    }
+    return wSum > 0 ? +(sum / wSum).toFixed(2) : e.weight;
+  });
+
+  const chartData = filteredSorted.map((e, i) => ({
+    label: formatShortDate(e.date),
+    date:  e.date,
+    value: e.weight,
+    color: colorForScaleId(e.scale_id),
+    ma:    filteredSorted.length >= 3 ? maValues[i] : undefined,
+  }));
 
   async function handleCopyHistory() {
     const sorted = [...entries].sort((a, b) => a.date.localeCompare(b.date));
@@ -265,17 +327,62 @@ export default function WeightPage() {
                   formatLabel={r => r === 'all' ? (t('meas.rangeAll') ?? 'All') : `${r}d`}
                 />
               </div>
-              <LineChartCard data={chartData} goalValue={settings.weight_goal || undefined} showTrend={true} unit=" kg" height={250} />
-              {scales.length > 1 && (
-                <div className="flex flex-wrap items-center gap-3 text-xs text-text-sec">
-                  {scales.map(s => (
-                    <span key={s.id} className="flex items-center gap-1.5">
-                      <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: colorForScaleId(s.id) }} />
-                      {s.name}
+              <LineChartCard
+                data={chartData}
+                goalValue={showGoal ? (settings.weight_goal || undefined) : undefined}
+                showTrend={showTrend}
+                showMovingAverage={showMA}
+                unit=" kg"
+                height={250}
+                tickStep={1}
+                valueLabel={t('weight.legendWeight')}
+                maLabel={t('weight.legendMA')}
+              />
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                <LegendChip
+                  active
+                  swatch={<span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: 'var(--accent)' }} />}
+                  label={t('weight.legendWeight')}
+                />
+                <LegendChip
+                  active={showMA}
+                  onClick={() => toggleSeries('ma')}
+                  swatch={<span className="inline-block w-3.5 h-0.5 rounded-full" style={{ backgroundColor: 'var(--red)' }} />}
+                  label={t('weight.legendMA')}
+                />
+                <LegendChip
+                  active={showTrend}
+                  onClick={() => toggleSeries('trend')}
+                  swatch={
+                    <span className="inline-flex items-center" aria-hidden>
+                      <span className="inline-block w-1 h-0.5 mr-0.5 rounded-full" style={{ backgroundColor: 'var(--text-sec)' }} />
+                      <span className="inline-block w-1 h-0.5 mr-0.5 rounded-full" style={{ backgroundColor: 'var(--text-sec)' }} />
+                      <span className="inline-block w-1 h-0.5 rounded-full" style={{ backgroundColor: 'var(--text-sec)' }} />
                     </span>
-                  ))}
-                </div>
-              )}
+                  }
+                  label={t('weight.legendTrend')}
+                />
+                {settings.weight_goal ? (
+                  <LegendChip
+                    active={showGoal}
+                    onClick={() => toggleSeries('goal')}
+                    swatch={
+                      <span className="inline-flex items-center" aria-hidden>
+                        <span className="inline-block w-1 h-0.5 mr-0.5 rounded-full" style={{ backgroundColor: 'var(--accent2)' }} />
+                        <span className="inline-block w-1 h-0.5 mr-0.5 rounded-full" style={{ backgroundColor: 'var(--accent2)' }} />
+                        <span className="inline-block w-1 h-0.5 rounded-full" style={{ backgroundColor: 'var(--accent2)' }} />
+                      </span>
+                    }
+                    label={t('weight.legendGoal')}
+                  />
+                ) : null}
+                {scales.length > 1 && scales.map(s => (
+                  <span key={s.id} className="flex items-center gap-1.5 px-2 py-1 text-text-sec">
+                    <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: colorForScaleId(s.id) }} />
+                    {s.name}
+                  </span>
+                ))}
+              </div>
             </div>
           )}
 
