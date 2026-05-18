@@ -111,19 +111,24 @@ function registerImportIpc() {
 
     let imported = 0, skipped = 0;
     const insert = db.prepare(
-      `INSERT OR IGNORE INTO foods (name, calories, protein, carbs, fat, fiber, piece_grams, is_liquid, is_bulk, opened_days)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT OR IGNORE INTO foods (name, category, calories, protein, carbs, fat, fiber, sugar, saturated_fat, sodium_mg, piece_grams, is_liquid, is_bulk, barcode, opened_days, discard_threshold_pct, price_per_100g)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     );
+    const num = v => (v != null && v !== '' ? +v : null);
     db.transaction(() => {
       for (const f of foods) {
         if (!f.name || !f.calories) { skipped++; continue; }
         const r = insert.run(
-          f.name, +f.calories || 0, +f.protein || 0, +f.carbs || 0,
-          +f.fat || 0, +f.fiber || 0,
-          f.piece_grams ? +f.piece_grams : null,
+          f.name, f.category || 'other',
+          +f.calories || 0, +f.protein || 0, +f.carbs || 0, +f.fat || 0, +f.fiber || 0,
+          num(f.sugar), num(f.saturated_fat), num(f.sodium_mg),
+          num(f.piece_grams),
           +f.is_liquid || 0,
           +f.is_bulk || 0,
-          f.opened_days != null && f.opened_days !== '' ? +f.opened_days : null
+          f.barcode || null,
+          num(f.opened_days),
+          num(f.discard_threshold_pct),
+          num(f.price_per_100g),
         );
         r.changes > 0 ? imported++ : skipped++;
       }
@@ -144,19 +149,24 @@ function registerImportIpc() {
 
     let imported = 0, skipped = 0;
     const insert = db.prepare(
-      `INSERT OR IGNORE INTO foods (name, calories, protein, carbs, fat, fiber, piece_grams, is_liquid, is_bulk, opened_days)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT OR IGNORE INTO foods (name, category, calories, protein, carbs, fat, fiber, sugar, saturated_fat, sodium_mg, piece_grams, is_liquid, is_bulk, barcode, opened_days, discard_threshold_pct, price_per_100g)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     );
+    const num = v => (v != null && v !== '' ? +v : null);
     db.transaction(() => {
       for (const f of foods) {
         if (!f.name || !f.calories) { skipped++; continue; }
         const r = insert.run(
-          f.name, +f.calories || 0, +f.protein || 0, +f.carbs || 0,
-          +f.fat || 0, +f.fiber || 0,
-          f.piece_grams ? +f.piece_grams : null,
+          f.name, f.category || 'other',
+          +f.calories || 0, +f.protein || 0, +f.carbs || 0, +f.fat || 0, +f.fiber || 0,
+          num(f.sugar), num(f.saturated_fat), num(f.sodium_mg),
+          num(f.piece_grams),
           +f.is_liquid || 0,
           +f.is_bulk || 0,
-          f.opened_days != null && f.opened_days !== '' ? +f.opened_days : null
+          f.barcode || null,
+          num(f.opened_days),
+          num(f.discard_threshold_pct),
+          num(f.price_per_100g),
         );
         r.changes > 0 ? imported++ : skipped++;
       }
@@ -175,12 +185,21 @@ function registerImportIpc() {
     db.transaction(() => {
       // Foods
       const insFood = db.prepare(
-        `INSERT OR IGNORE INTO foods (name, calories, protein, carbs, fat, fiber, piece_grams, is_liquid, is_bulk, opened_days)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        `INSERT OR IGNORE INTO foods (name, category, calories, protein, carbs, fat, fiber, sugar, saturated_fat, sodium_mg, piece_grams, is_liquid, is_bulk, barcode, opened_days, discard_threshold_pct, price_per_100g)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       );
       for (const f of data.foods ?? []) {
-        const r = insFood.run(f.name, f.calories, f.protein, f.carbs, f.fat, f.fiber,
-          f.piece_grams ?? null, f.is_liquid ?? 0, f.is_bulk ?? 0, f.opened_days ?? null);
+        const r = insFood.run(
+          f.name, f.category || 'other',
+          f.calories, f.protein, f.carbs, f.fat, f.fiber,
+          f.sugar ?? null, f.saturated_fat ?? null, f.sodium_mg ?? null,
+          f.piece_grams ?? null,
+          f.is_liquid ?? 0, f.is_bulk ?? 0,
+          f.barcode ?? null,
+          f.opened_days ?? null,
+          f.discard_threshold_pct ?? null,
+          f.price_per_100g ?? null,
+        );
         if (r.changes) stats.foods++;
       }
 

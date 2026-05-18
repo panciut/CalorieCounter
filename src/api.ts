@@ -69,6 +69,7 @@ export const api = {
     update:             (data: { id: number; food_id: number; grams: number; meal: Meal }) =>
                           invoke<{ ok: boolean }>('log:update', data),
     delete:             (id: number) => invoke<{ ok: boolean }>('log:delete', { id }),
+    deleteRecipeGroup:  (recipe_log_id: string) => invoke<{ ok: boolean; deleted: number }>('log:deleteRecipeGroup', { recipe_log_id }),
     getPlanned:         (date: string) => invoke<LogEntry[]>('log:getPlanned', { date }),
     confirmPlanned:     (data: { id: number; pantry_id?: number }) => invoke<{ ok: boolean; shortage: number; shortage_food: string; events: DeductionEvent[] }>('log:confirmPlanned', data),
     confirmAllPlanned:  (data: { date: string; pantry_id?: number }) => invoke<{ ok: boolean; shortages: { food_name: string; shortage: number }[]; events: DeductionEvent[] }>('log:confirmAllPlanned', data),

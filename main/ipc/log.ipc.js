@@ -35,11 +35,15 @@ function registerLogIpc() {
     const d = date || today();
     return getDb().prepare(`
       SELECT l.id, l.food_id, l.date, l.meal, l.status, COALESCE(f.display_name, f.name) AS name, l.grams,
+        l.recipe_log_id, l.recipe_name,
         ROUND(f.calories * l.grams / 100, 2) AS calories,
         ROUND(f.protein  * l.grams / 100, 2) AS protein,
         ROUND(f.carbs    * l.grams / 100, 2) AS carbs,
         ROUND(f.fat      * l.grams / 100, 2) AS fat,
-        ROUND(f.fiber    * l.grams / 100, 2) AS fiber
+        ROUND(f.fiber    * l.grams / 100, 2) AS fiber,
+        ROUND(f.sugar         * l.grams / 100, 2) AS sugar,
+        ROUND(f.saturated_fat * l.grams / 100, 2) AS saturated_fat,
+        ROUND(f.sodium_mg     * l.grams / 100, 2) AS sodium_mg
       FROM log l
       JOIN foods f ON l.food_id = f.id
       WHERE l.date = ?
@@ -52,16 +56,35 @@ function registerLogIpc() {
     const d = date || today();
     return getDb().prepare(`
       SELECT l.id, l.food_id, l.date, l.meal, l.status, COALESCE(f.display_name, f.name) AS name, l.grams,
+        l.recipe_log_id, l.recipe_name,
         ROUND(f.calories * l.grams / 100, 2) AS calories,
         ROUND(f.protein  * l.grams / 100, 2) AS protein,
         ROUND(f.carbs    * l.grams / 100, 2) AS carbs,
         ROUND(f.fat      * l.grams / 100, 2) AS fat,
-        ROUND(f.fiber    * l.grams / 100, 2) AS fiber
+        ROUND(f.fiber    * l.grams / 100, 2) AS fiber,
+        ROUND(f.sugar         * l.grams / 100, 2) AS sugar,
+        ROUND(f.saturated_fat * l.grams / 100, 2) AS saturated_fat,
+        ROUND(f.sodium_mg     * l.grams / 100, 2) AS sodium_mg
       FROM log l
       JOIN foods f ON l.food_id = f.id
       WHERE l.date = ? AND l.status = 'planned'
       ORDER BY l.id
     `).all(d);
+  });
+
+  // Delete every log entry that shares a recipe_log_id (i.e. all ingredients
+  // logged together as one recipe). Used by the "delete recipe group" action.
+  ipcMain.handle('log:deleteRecipeGroup', (_, { recipe_log_id }) => {
+    if (!recipe_log_id) return { ok: false, deleted: 0 };
+    const db = getDb();
+    const rows = db.prepare('SELECT id FROM log WHERE recipe_log_id = ?').all(recipe_log_id);
+    db.transaction(() => {
+      for (const r of rows) {
+        db.prepare('DELETE FROM water_log WHERE log_id = ?').run(r.id);
+      }
+      db.prepare('DELETE FROM log WHERE recipe_log_id = ?').run(recipe_log_id);
+    })();
+    return { ok: true, deleted: rows.length };
   });
 
   ipcMain.handle('log:confirmPlanned', (_, { id, pantry_id }) => {

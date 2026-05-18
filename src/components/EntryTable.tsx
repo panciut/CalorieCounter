@@ -2,11 +2,23 @@ import { useState, Fragment } from 'react';
 import { useT } from '../i18n/useT';
 import { api } from '../api';
 import { useToast } from './Toast';
+import { useSettings } from '../hooks/useSettings';
 import Modal from './Modal';
 import EmptyState from './ui/EmptyState';
 import ModalFooter from './ui/ModalFooter';
 import MacroChips from './ui/MacroChips';
 import { MEAL_ORDER, type LogEntry, type Food, type Meal } from '../types';
+
+const SUB_CLS = 'ml-1 text-[10px] text-text-sec/60 tabular-nums';
+
+function r1(n: number) { return Math.round(n * 10) / 10; }
+
+function formatSaltCell(sodium_mg: number | null | undefined, unit: 'sodium' | 'salt'): string {
+  if (sodium_mg == null) return '—';
+  return unit === 'salt'
+    ? `${r1(sodium_mg / 400)}g`
+    : `${Math.round(sodium_mg)}mg`;
+}
 
 interface EntryTableProps {
   entries: LogEntry[];
@@ -41,10 +53,80 @@ function unitSize(food: Food | undefined, packId: number | null): { size: number
   return { size: 0, label: 'pcs' };
 }
 
+type Row =
+  | { kind: 'single'; entry: LogEntry }
+  | { kind: 'group'; recipeLogId: string; name: string; entries: LogEntry[] };
+
+function buildRows(entries: LogEntry[]): Row[] {
+  const rows: Row[] = [];
+  let i = 0;
+  while (i < entries.length) {
+    const e = entries[i];
+    if (!e.recipe_log_id) {
+      rows.push({ kind: 'single', entry: e });
+      i++;
+      continue;
+    }
+    // Collect contiguous entries with the same recipe_log_id (recipes:log inserts
+    // them in one transaction, so they arrive adjacent under the same meal).
+    const groupEntries: LogEntry[] = [e];
+    let j = i + 1;
+    while (j < entries.length && entries[j].recipe_log_id === e.recipe_log_id) {
+      groupEntries.push(entries[j]);
+      j++;
+    }
+    rows.push({
+      kind: 'group',
+      recipeLogId: e.recipe_log_id,
+      name: e.recipe_name || 'Recipe',
+      entries: groupEntries,
+    });
+    i = j;
+  }
+  return rows;
+}
+
+function groupTotals(entries: LogEntry[]) {
+  let cal = 0, protein = 0, carbs = 0, fat = 0, fiber = 0, grams = 0;
+  let sugar = 0, satFat = 0, sodium = 0;
+  let hasSugar = false, hasSatFat = false, hasSodium = false;
+  for (const e of entries) {
+    cal += e.calories; protein += e.protein; carbs += e.carbs; fat += e.fat;
+    fiber += e.fiber || 0; grams += e.grams;
+    if (e.sugar         != null) { sugar  += e.sugar;         hasSugar  = true; }
+    if (e.saturated_fat != null) { satFat += e.saturated_fat; hasSatFat = true; }
+    if (e.sodium_mg     != null) { sodium += e.sodium_mg;     hasSodium = true; }
+  }
+  return {
+    cal: Math.round(cal), grams: r1(grams),
+    protein: r1(protein), carbs: r1(carbs), fat: r1(fat), fiber: r1(fiber),
+    sugar:  hasSugar  ? r1(sugar)  : null,
+    satFat: hasSatFat ? r1(satFat) : null,
+    sodium: hasSodium ? sodium     : null,
+  };
+}
+
 export default function EntryTable({ entries, foods, onRefresh, onConfirm }: EntryTableProps) {
   const { t, tMeal } = useT();
   const { showToast } = useToast();
+  const { settings } = useSettings();
+  const trackExtra = settings.track_extra_nutrition === 1;
+  const saltUnit = (settings.extra_nutrition_unit ?? 'sodium') as 'sodium' | 'salt';
   const [editing, setEditing] = useState<EditState | null>(null);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+
+  function toggleExpand(id: string) {
+    setExpanded(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  async function handleDeleteRecipeGroup(recipeLogId: string) {
+    await api.log.deleteRecipeGroup(recipeLogId);
+    onRefresh();
+  }
   const [saveMeal, setSaveMeal] = useState<{ meal: Meal; entries: LogEntry[] } | null>(null);
   const [bundleName, setBundleName] = useState('');
   const [bundleItems, setBundleItems] = useState<{ food_id: number; name: string; gramsStr: string }[]>([]);
@@ -124,15 +206,27 @@ export default function EntryTable({ entries, foods, onRefresh, onConfirm }: Ent
 
   function mealTotals(mealEntries: LogEntry[]) {
     let cal = 0, protein = 0, carbs = 0, fat = 0, fiber = 0, liquidMl = 0;
+    let sugar = 0, satFat = 0, sodium = 0;
+    let hasSugar = false, hasSatFat = false, hasSodium = false;
     for (const e of mealEntries) {
       cal     += e.calories;
       protein += e.protein;
       carbs   += e.carbs;
       fat     += e.fat;
       fiber   += e.fiber || 0;
+      if (e.sugar         != null) { sugar  += e.sugar;         hasSugar  = true; }
+      if (e.saturated_fat != null) { satFat += e.saturated_fat; hasSatFat = true; }
+      if (e.sodium_mg     != null) { sodium += e.sodium_mg;     hasSodium = true; }
       if (foodsById.get(e.food_id)?.is_liquid) liquidMl += e.grams;
     }
-    return { cal: Math.round(cal), protein: Math.round(protein * 10) / 10, carbs: Math.round(carbs * 10) / 10, fat: Math.round(fat * 10) / 10, fiber: Math.round(fiber * 10) / 10, liquidMl: Math.round(liquidMl) };
+    return {
+      cal: Math.round(cal),
+      protein: r1(protein), carbs: r1(carbs), fat: r1(fat), fiber: r1(fiber),
+      sugar: hasSugar ? r1(sugar) : null,
+      satFat: hasSatFat ? r1(satFat) : null,
+      sodium: hasSodium ? sodium : null,
+      liquidMl: Math.round(liquidMl),
+    };
   }
 
   async function handleDelete(id: number) {
@@ -178,36 +272,128 @@ export default function EntryTable({ entries, foods, onRefresh, onConfirm }: Ent
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-text-sec text-xs">
-                <th className="pb-1 font-medium">{t('th.food')}</th>
-                <th className="pb-1 font-medium w-12 text-right">{t('th.g')}</th>
-                <th className="pb-1 font-medium w-14 text-right">{t('th.kcal')}</th>
-                <th className="pb-1 font-medium w-14 text-right">{t('th.fat')}</th>
-                <th className="pb-1 font-medium w-14 text-right">{t('th.carbs')}</th>
-                <th className="pb-1 font-medium w-14 text-right">{t('th.fiber')}</th>
-                <th className="pb-1 font-medium w-14 text-right">{t('th.protein')}</th>
-                <th className="w-16" />
+                <th className="pb-1 pl-1 pr-3 font-medium">{t('th.food')}</th>
+                <th className="pb-1 px-2 font-medium w-14 text-right">{t('th.g')}</th>
+                <th className="pb-1 px-2 font-medium w-14 text-right">{t('th.kcal')}</th>
+                <th className={`pb-1 px-2 font-medium text-right ${trackExtra ? 'w-24' : 'w-16'}`}>{t('th.fat')}</th>
+                <th className={`pb-1 px-2 font-medium text-right ${trackExtra ? 'w-24' : 'w-16'}`}>{t('th.carbs')}</th>
+                <th className="pb-1 px-2 font-medium w-16 text-right">{t('th.fiber')}</th>
+                <th className="pb-1 px-2 font-medium w-16 text-right">{t('th.protein')}</th>
+                {trackExtra && (
+                  <th className="pb-1 px-2 font-medium w-16 text-right">
+                    {saltUnit === 'salt' ? t('nutrition.salt') : t('nutrition.sodium')}
+                  </th>
+                )}
+                <th className="w-20 pl-2" />
               </tr>
             </thead>
             <tbody>
-              {groups[meal].map(e => (
+              {buildRows(groups[meal]).map(row => row.kind === 'group' ? (() => {
+                const isOpen = expanded.has(row.recipeLogId);
+                const gt = groupTotals(row.entries);
+                return (
+                  <Fragment key={`g-${row.recipeLogId}`}>
+                    <tr
+                      className="border-t border-border/40 hover:bg-card-hover/30 bg-accent/[0.04] cursor-pointer"
+                      onClick={() => toggleExpand(row.recipeLogId)}
+                    >
+                      <td className="py-2 pl-1 pr-3">
+                        <span className="text-text-sec mr-1 inline-block w-3 select-none">{isOpen ? '▾' : '▸'}</span>
+                        <span className="text-[10px] text-accent border border-accent/40 rounded px-1 py-0.5 mr-1.5">🍽 recipe</span>
+                        <span className="font-medium">{row.name}</span>
+                        <span className="ml-2 text-[10px] text-text-sec">{row.entries.length} ingr.</span>
+                      </td>
+                      <td className="py-2 px-2 text-right tabular-nums">{gt.grams}</td>
+                      <td className="py-2 px-2 text-right tabular-nums font-medium">{gt.cal}</td>
+                      <td className="py-2 px-2 text-right tabular-nums text-text-sec whitespace-nowrap">
+                        {gt.fat}g
+                        {trackExtra && gt.satFat != null && (<span className={SUB_CLS}>({gt.satFat}g)</span>)}
+                      </td>
+                      <td className="py-2 px-2 text-right tabular-nums text-text-sec whitespace-nowrap">
+                        {gt.carbs}g
+                        {trackExtra && gt.sugar != null && (<span className={SUB_CLS}>({gt.sugar}g)</span>)}
+                      </td>
+                      <td className="py-2 px-2 text-right tabular-nums text-text-sec">{gt.fiber}g</td>
+                      <td className="py-2 px-2 text-right tabular-nums text-text-sec">{gt.protein}g</td>
+                      {trackExtra && (
+                        <td className="py-2 px-2 text-right tabular-nums text-text-sec">
+                          {formatSaltCell(gt.sodium, saltUnit)}
+                        </td>
+                      )}
+                      <td className="py-2 pl-2 text-right">
+                        <button
+                          onClick={ev => { ev.stopPropagation(); handleDeleteRecipeGroup(row.recipeLogId); }}
+                          aria-label={t('common.delete') || 'Delete'}
+                          title="Delete whole recipe"
+                          className="text-text-sec hover:text-red px-1 cursor-pointer transition-colors"
+                        >✕</button>
+                      </td>
+                    </tr>
+                    {isOpen && row.entries.map(e => (
+                      <tr key={e.id} className={[
+                        'border-t border-border/20 hover:bg-card-hover/30 bg-accent/[0.02]',
+                        e.status === 'planned' ? 'opacity-60' : '',
+                      ].join(' ')}>
+                        <td className="py-1.5 pl-7 pr-3 text-text-sec">
+                          <span className="text-text-sec/50 mr-1">└</span>{e.name}
+                        </td>
+                        <td className="py-1.5 px-2 text-right tabular-nums text-text-sec">{r1(e.grams)}</td>
+                        <td className="py-1.5 px-2 text-right tabular-nums text-text-sec">{e.calories}</td>
+                        <td className="py-1.5 px-2 text-right tabular-nums text-text-sec/80 whitespace-nowrap">
+                          {e.fat}g{trackExtra && e.saturated_fat != null && (<span className={SUB_CLS}>({e.saturated_fat}g)</span>)}
+                        </td>
+                        <td className="py-1.5 px-2 text-right tabular-nums text-text-sec/80 whitespace-nowrap">
+                          {e.carbs}g{trackExtra && e.sugar != null && (<span className={SUB_CLS}>({e.sugar}g)</span>)}
+                        </td>
+                        <td className="py-1.5 px-2 text-right tabular-nums text-text-sec/80">{e.fiber || 0}g</td>
+                        <td className="py-1.5 px-2 text-right tabular-nums text-text-sec/80">{e.protein}g</td>
+                        {trackExtra && (
+                          <td className="py-1.5 px-2 text-right tabular-nums text-text-sec/80">
+                            {formatSaltCell(e.sodium_mg, saltUnit)}
+                          </td>
+                        )}
+                        <td className="py-1.5 pl-2 text-right">
+                          <button onClick={() => handleDelete(e.id)} aria-label={t('common.delete') || 'Delete'}
+                            className="text-text-sec/60 hover:text-red px-1 cursor-pointer transition-colors text-xs">✕</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </Fragment>
+                );
+              })() : (() => { const e = row.entry; return (
                 <Fragment key={e.id}>
                   <tr className={[
                     'border-t border-border/40 hover:bg-card-hover/30',
                     e.status === 'planned' ? 'opacity-60' : '',
                   ].join(' ')}>
-                    <td className="py-1.5 pr-2">
+                    <td className="py-1.5 pl-1 pr-3">
                       <span className={e.status === 'planned' ? 'italic text-text-sec' : ''}>{e.name}</span>
                       {e.status === 'planned' && (
                         <span className="ml-1.5 text-[10px] text-accent border border-accent/40 rounded px-1 py-0.5">plan</span>
                       )}
                     </td>
-                    <td className="py-1.5 text-right tabular-nums">{Math.round(e.grams * 10) / 10}</td>
-                    <td className="py-1.5 text-right tabular-nums">{e.calories}</td>
-                    <td className="py-1.5 text-right tabular-nums text-text-sec">{e.fat}g</td>
-                    <td className="py-1.5 text-right tabular-nums text-text-sec">{e.carbs}g</td>
-                    <td className="py-1.5 text-right tabular-nums text-text-sec">{e.fiber || 0}g</td>
-                    <td className="py-1.5 text-right tabular-nums text-text-sec">{e.protein}g</td>
-                    <td className="py-1.5 text-right">
+                    <td className="py-1.5 px-2 text-right tabular-nums">{Math.round(e.grams * 10) / 10}</td>
+                    <td className="py-1.5 px-2 text-right tabular-nums">{e.calories}</td>
+                    <td className="py-1.5 px-2 text-right tabular-nums text-text-sec whitespace-nowrap">
+                      {e.fat}g
+                      {trackExtra && e.saturated_fat != null && (
+                        <span className={SUB_CLS}>({e.saturated_fat}g)</span>
+                      )}
+                    </td>
+                    <td className="py-1.5 px-2 text-right tabular-nums text-text-sec whitespace-nowrap">
+                      {e.carbs}g
+                      {trackExtra && e.sugar != null && (
+                        <span className={SUB_CLS}>({e.sugar}g)</span>
+                      )}
+                    </td>
+                    <td className="py-1.5 px-2 text-right tabular-nums text-text-sec">{e.fiber || 0}g</td>
+                    <td className="py-1.5 px-2 text-right tabular-nums text-text-sec">{e.protein}g</td>
+                    {trackExtra && (
+                      <td className="py-1.5 px-2 text-right tabular-nums text-text-sec">
+                        {formatSaltCell(e.sodium_mg, saltUnit)}
+                      </td>
+                    )}
+                    <td className="py-1.5 pl-2 text-right">
                       {e.status === 'planned' && onConfirm && (
                         <button onClick={() => onConfirm(e.id)} aria-label={t('plan.confirm') || 'Confirm'}
                           className="text-accent hover:opacity-75 px-1 cursor-pointer transition-colors text-xs" title="Confirm">✓</button>
@@ -227,7 +413,7 @@ export default function EntryTable({ entries, foods, onRefresh, onConfirm }: Ent
                     const inputCls = "w-24 bg-card border border-border rounded px-2 py-1 text-sm text-text outline-none focus:border-accent [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none";
                     return (
                       <tr className="bg-card-hover/50">
-                        <td colSpan={8} className="py-2 px-2">
+                        <td colSpan={trackExtra ? 9 : 8} className="py-2 px-2">
                           <div className="flex items-center gap-2 flex-wrap">
                             <select
                               value={editing.food_id}
@@ -364,21 +550,36 @@ export default function EntryTable({ entries, foods, onRefresh, onConfirm }: Ent
                     );
                   })()}
                 </Fragment>
-              ))}
+              );})())}
             </tbody>
             <tfoot>
               {(() => {
                 const tot = mealTotals(groups[meal]);
                 return (
                   <tr className="border-t border-border text-xs text-text-sec">
-                    <td className="pt-1.5 pr-2 font-normal italic">Total</td>
-                    <td className="pt-1.5 text-right tabular-nums">{tot.liquidMl > 0 ? `${tot.liquidMl} ml` : ''}</td>
-                    <td className="pt-1.5 text-right tabular-nums font-semibold text-text">{tot.cal}</td>
-                    <td className="pt-1.5 text-right tabular-nums">{tot.fat}g</td>
-                    <td className="pt-1.5 text-right tabular-nums">{tot.carbs}g</td>
-                    <td className="pt-1.5 text-right tabular-nums">{tot.fiber}g</td>
-                    <td className="pt-1.5 text-right tabular-nums">{tot.protein}g</td>
-                    <td className="pt-1.5 text-right">
+                    <td className="pt-1.5 pl-1 pr-3 font-normal italic">Total</td>
+                    <td className="pt-1.5 px-2 text-right tabular-nums">{tot.liquidMl > 0 ? `${tot.liquidMl} ml` : ''}</td>
+                    <td className="pt-1.5 px-2 text-right tabular-nums font-semibold text-text">{tot.cal}</td>
+                    <td className="pt-1.5 px-2 text-right tabular-nums whitespace-nowrap">
+                      {tot.fat}g
+                      {trackExtra && tot.satFat != null && (
+                        <span className={SUB_CLS}>({tot.satFat}g)</span>
+                      )}
+                    </td>
+                    <td className="pt-1.5 px-2 text-right tabular-nums whitespace-nowrap">
+                      {tot.carbs}g
+                      {trackExtra && tot.sugar != null && (
+                        <span className={SUB_CLS}>({tot.sugar}g)</span>
+                      )}
+                    </td>
+                    <td className="pt-1.5 px-2 text-right tabular-nums">{tot.fiber}g</td>
+                    <td className="pt-1.5 px-2 text-right tabular-nums">{tot.protein}g</td>
+                    {trackExtra && (
+                      <td className="pt-1.5 px-2 text-right tabular-nums">
+                        {formatSaltCell(tot.sodium, saltUnit)}
+                      </td>
+                    )}
+                    <td className="pt-1.5 pl-2 text-right">
                       <button
                         onClick={() => openSaveMeal(meal, groups[meal])}
                         title={t('entry.saveAsBundle')}

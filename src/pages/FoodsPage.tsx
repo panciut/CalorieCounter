@@ -138,15 +138,20 @@ function Switch({ checked, onChange, label, title }: { checked: boolean; onChang
 function FormFields({ form, patch, trackExtra = false, unit = 'sodium' }: FormFieldsProps) {
   const { t } = useT();
   const FIELD_CLS = 'bg-bg border border-border rounded-lg px-2 py-1.5 text-text text-sm outline-none focus:border-accent w-full text-center font-semibold tabular-nums';
+  const SUB_FIELD_CLS = 'bg-bg/60 border border-border/60 rounded px-2 py-1 text-text text-xs outline-none focus:border-accent w-full text-center tabular-nums';
   const LABEL_CLS = 'flex items-center gap-1.5 text-[10px] font-semibold tracking-[0.12em] uppercase text-text-sec/80';
+  const SUB_LABEL_CLS = 'text-[9px] tracking-[0.1em] uppercase text-text-sec/60 pl-2';
+  // Nutrition-label order: kcal, Fat (└ Sat fat), Carbs (└ Sugar), Fiber, Protein, Salt, piece
   const macros: { key: keyof FoodFormState; label: string }[] = [
     { key: 'calories', label: 'kcal' },
     { key: 'fat',      label: t('th.fat') },
     { key: 'carbs',    label: t('th.carbs') },
     { key: 'fiber',    label: t('th.fiber') },
     { key: 'protein',  label: t('th.protein') },
+    ...(trackExtra ? [{ key: 'sodium_or_salt' as keyof FoodFormState, label: unit === 'salt' ? `${t('nutrition.salt')} (g)` : `${t('nutrition.sodium')} (mg)` }] : []),
     { key: 'piece_grams', label: t('foods.piecePlaceholder') },
   ];
+  const gridCols = trackExtra ? 'grid-cols-7' : 'grid-cols-6';
   return (
     <div className="flex flex-col gap-3">
       <input
@@ -157,35 +162,29 @@ function FormFields({ form, patch, trackExtra = false, unit = 'sodium' }: FormFi
         className="bg-transparent border-0 border-b border-border focus:border-accent outline-none text-text text-lg italic pb-1.5 w-full"
         style={{ fontFamily: 'var(--font-family-serif)' }}
       />
-      <div className="grid grid-cols-6 gap-2">
+      <div className={`grid ${gridCols} gap-2`}>
         {macros.map(({ key, label }) => (
           <div key={key} className="flex flex-col gap-1 min-w-0">
             <span className={LABEL_CLS}>
-              <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: MACRO_DOT[key] }} />
+              <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: MACRO_DOT[key] ?? 'var(--text-sec)' }} />
               <span className="truncate">{label}</span>
             </span>
             <input type="text" inputMode="decimal" value={(form as unknown as Record<string,string>)[key]} onChange={e => patch({ [key]: e.target.value })} placeholder="0" className={FIELD_CLS} />
+            {trackExtra && key === 'fat' && (
+              <>
+                <span className={SUB_LABEL_CLS}>└ {t('nutrition.saturatedFat')}</span>
+                <input type="text" inputMode="decimal" value={form.saturated_fat} onChange={e => patch({ saturated_fat: e.target.value })} placeholder="0" className={SUB_FIELD_CLS} />
+              </>
+            )}
+            {trackExtra && key === 'carbs' && (
+              <>
+                <span className={SUB_LABEL_CLS}>└ {t('nutrition.sugar')}</span>
+                <input type="text" inputMode="decimal" value={form.sugar} onChange={e => patch({ sugar: e.target.value })} placeholder="0" className={SUB_FIELD_CLS} />
+              </>
+            )}
           </div>
         ))}
       </div>
-      {trackExtra && (
-        <div className="grid grid-cols-3 gap-2">
-          <div className="flex flex-col gap-1">
-            <span className={LABEL_CLS}><span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: 'var(--macro-carbs)' }} />{t('nutrition.sugar')} (g)</span>
-            <input type="text" inputMode="decimal" value={form.sugar} onChange={e => patch({ sugar: e.target.value })} placeholder="0" className={FIELD_CLS} />
-          </div>
-          <div className="flex flex-col gap-1">
-            <span className={LABEL_CLS}><span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: 'var(--macro-fat)' }} />{t('nutrition.saturatedFat')} (g)</span>
-            <input type="text" inputMode="decimal" value={form.saturated_fat} onChange={e => patch({ saturated_fat: e.target.value })} placeholder="0" className={FIELD_CLS} />
-          </div>
-          <div className="flex flex-col gap-1">
-            <span className={LABEL_CLS}><span className="w-1.5 h-1.5 rounded-full shrink-0 bg-text-sec/60" />
-              {unit === 'salt' ? `${t('nutrition.salt')} (g)` : `${t('nutrition.sodium')} (mg)`}
-            </span>
-            <input type="text" inputMode="decimal" value={form.sodium_or_salt} onChange={e => patch({ sodium_or_salt: e.target.value })} placeholder="0" className={FIELD_CLS} />
-          </div>
-        </div>
-      )}
       <div className="flex items-center gap-3 flex-wrap pt-1">
         <Switch checked={form.is_liquid} onChange={v => patch({ is_liquid: v })} label={`${t('foods.liquid')} 💧`} />
         <Switch checked={form.is_bulk}   onChange={v => patch({ is_bulk: v, piece_grams: v ? '' : form.piece_grams })} label={`${t('foods.bulk')} ⚖️`} title={t('foods.bulkHelp')} />
@@ -769,6 +768,7 @@ export default function FoodsPage() {
                   <th className="px-3 py-3 text-right"><span className="inline-flex items-center justify-end gap-1.5"><span className="w-1.5 h-1.5 rounded-full" style={{ background: MACRO_DOT.carbs }} />{t('th.carbs')}</span></th>
                   <th className="px-3 py-3 text-right"><span className="inline-flex items-center justify-end gap-1.5"><span className="w-1.5 h-1.5 rounded-full" style={{ background: MACRO_DOT.fiber }} />{t('th.fiber')}</span></th>
                   <th className="px-3 py-3 text-right"><span className="inline-flex items-center justify-end gap-1.5"><span className="w-1.5 h-1.5 rounded-full" style={{ background: MACRO_DOT.protein }} />{t('th.protein')}</span></th>
+                  {trackExtra && <th className="px-3 py-3 text-right">{unit === 'salt' ? t('nutrition.salt') : t('nutrition.sodium')}</th>}
                   <th className="px-3 py-3 text-right">{t('th.piece')}</th>
                   <th className="px-2 py-3 text-center">{t('th.liquid')}</th>
                   {detailMode && <th className="px-3 py-3 text-left">{t('th.barcode')}</th>}
@@ -785,7 +785,7 @@ export default function FoodsPage() {
                       <td className="px-2 py-2">
                         <button type="button" onClick={()=>handleToggleFavorite(food.id)} className="text-base cursor-pointer">{food.favorite===1?'⭐':'☆'}</button>
                       </td>
-                      <td colSpan={detailMode ? 10 : 9} className="px-3 py-2">
+                      <td colSpan={(detailMode ? 10 : 9) + (trackExtra ? 1 : 0)} className="px-3 py-2">
                         <FormFields form={editForm} patch={patchEdit} trackExtra={trackExtra} unit={unit} />
                         {detailMode && (
                           <div className="flex flex-wrap gap-3 mt-2">
@@ -912,10 +912,29 @@ export default function FoodsPage() {
                       </td>
                       <td className="px-3 py-2.5 text-text-sec text-xs">{t(`food.category.${food.category ?? 'other'}`)}</td>
                       <td className="px-3 py-2.5 text-right text-text tabular-nums">{food.calories}</td>
-                      <td className="px-3 py-2.5 text-right text-text-sec tabular-nums">{food.fat}</td>
-                      <td className="px-3 py-2.5 text-right text-text-sec tabular-nums">{food.carbs}</td>
+                      <td className="px-3 py-2.5 text-right text-text-sec tabular-nums">
+                        {food.fat}
+                        {trackExtra && food.saturated_fat != null && (
+                          <span className="ml-1 text-[10px] text-text-sec/60">({food.saturated_fat})</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2.5 text-right text-text-sec tabular-nums">
+                        {food.carbs}
+                        {trackExtra && food.sugar != null && (
+                          <span className="ml-1 text-[10px] text-text-sec/60">({food.sugar})</span>
+                        )}
+                      </td>
                       <td className="px-3 py-2.5 text-right text-text-sec tabular-nums">{food.fiber}</td>
                       <td className="px-3 py-2.5 text-right text-text-sec tabular-nums">{food.protein}</td>
+                      {trackExtra && (
+                        <td className="px-3 py-2.5 text-right text-text-sec tabular-nums">
+                          {food.sodium_mg == null
+                            ? '—'
+                            : unit === 'salt'
+                              ? `${Math.round((food.sodium_mg / 400) * 10) / 10}g`
+                              : `${Math.round(food.sodium_mg)}`}
+                        </td>
+                      )}
                       <td className="px-3 py-2.5 text-right text-text-sec tabular-nums">{food.piece_grams!=null?`${food.piece_grams}g`:'—'}</td>
                       <td className="px-2 py-2.5 text-center">{food.is_liquid===1?'💧':''}</td>
                       {detailMode && <td className="px-3 py-2.5 text-text-sec tabular-nums text-xs">{food.barcode ?? '—'}</td>}

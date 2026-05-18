@@ -104,6 +104,13 @@ export interface LogEntry {
   carbs: number;
   fat: number;
   fiber: number;
+  sugar?: number | null;
+  saturated_fat?: number | null;
+  sodium_mg?: number | null;
+  /** Shared id across all log rows inserted from one recipe-log action. */
+  recipe_log_id?: string | null;
+  /** Snapshot of the recipe name at log time (recipe may be renamed/deleted later). */
+  recipe_name?: string | null;
   meal: Meal;
   date: string;
   status: 'logged' | 'planned';
@@ -118,6 +125,9 @@ export interface Recipe {
   carbs: number;
   fat: number;
   fiber: number;
+  sugar?: number | null;
+  saturated_fat?: number | null;
+  sodium_mg?: number | null;
   ingredient_count: number;
   ingredients?: RecipeIngredient[];
 }
@@ -132,6 +142,9 @@ export interface RecipeIngredient {
   carbs: number;
   fat: number;
   fiber: number;
+  sugar?: number | null;
+  saturated_fat?: number | null;
+  sodium_mg?: number | null;
   editGrams?: number;
 }
 
@@ -258,6 +271,9 @@ export interface ActualRecipe {
   total_carbs: number;
   total_fat: number;
   total_fiber: number;
+  total_sugar?: number | null;
+  total_saturated_fat?: number | null;
+  total_sodium_mg?: number | null;
   ingredient_count: number;
   ingredients?: ActualRecipeIngredient[];
 }
@@ -272,6 +288,9 @@ export interface ActualRecipeIngredient {
   carbs: number;
   fat: number;
   fiber: number;
+  sugar?: number | null;
+  saturated_fat?: number | null;
+  sodium_mg?: number | null;
 }
 
 export interface Settings {

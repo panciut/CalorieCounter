@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { api } from '../api';
 import { useToast } from '../components/Toast';
 import { useT } from '../i18n/useT';
+import { useSettings } from '../hooks/useSettings';
 import ConfirmDialog from '../components/ConfirmDialog';
 import AddFoodRow from '../components/AddFoodRow';
 import { today } from '../lib/dateUtil';
@@ -20,6 +21,45 @@ type PantryCheckResult = { can_make: boolean; missing: PantryIngredientCheck[] }
 function n(v: unknown) { return Math.round(Number(v) || 0); }
 function nf(v: unknown) { return Math.round((Number(v) || 0) * 10) / 10; }
 
+function formatSalt(sodium_mg: unknown, unit: 'sodium' | 'salt'): string {
+  const v = Number(sodium_mg);
+  if (!v) return '0';
+  return unit === 'salt'
+    ? `${Math.round((v / 400) * 10) / 10}g`
+    : `${Math.round(v)}mg`;
+}
+
+/** Inline macro row used across recipe cards/modals so fiber + extras render consistently. */
+function MacroRow({
+  cal, protein, carbs, fat, fiber, sugar, satFat, sodium,
+  trackExtra, saltUnit, suffix,
+}: {
+  cal: number; protein: number; carbs: number; fat: number; fiber: number;
+  sugar?: number | null; satFat?: number | null; sodium?: number | null;
+  trackExtra: boolean; saltUnit: 'sodium' | 'salt';
+  suffix?: React.ReactNode;
+}) {
+  return (
+    <div className="flex gap-3 text-xs text-text-sec flex-wrap items-center tabular-nums">
+      <span><span className="text-text font-semibold">{n(cal)}</span> kcal</span>
+      <span>
+        F {nf(fat)}g
+        {trackExtra && satFat != null && <span className="ml-0.5 text-[10px] text-text-sec/60">({nf(satFat)}g)</span>}
+      </span>
+      <span>
+        C {nf(carbs)}g
+        {trackExtra && sugar != null && <span className="ml-0.5 text-[10px] text-text-sec/60">({nf(sugar)}g)</span>}
+      </span>
+      <span>Fib {nf(fiber)}g</span>
+      <span>P {nf(protein)}g</span>
+      {trackExtra && sodium != null && (
+        <span>{saltUnit === 'salt' ? 'Salt' : 'Na'} {formatSalt(sodium, saltUnit)}</span>
+      )}
+      {suffix}
+    </div>
+  );
+}
+
 // ─────────────────────────────────────────────────────────────
 // BUNDLES TAB (original recipes)
 // ─────────────────────────────────────────────────────────────
@@ -27,6 +67,9 @@ function nf(v: unknown) { return Math.round((Number(v) || 0) * 10) / 10; }
 function BundlesTab() {
   const { showToast } = useToast();
   const { t, tMeal } = useT();
+  const { settings } = useSettings();
+  const trackExtra = settings.track_extra_nutrition === 1;
+  const saltUnit = (settings.extra_nutrition_unit ?? 'sodium') as 'sodium' | 'salt';
   const { current: deductionEvent, next: nextDeduction, push: pushDeduction } = useDeductionEvents();
   const [bundles, setBundles]           = useState<Recipe[]>([]);
   const [foods, setFoods]               = useState<Food[]>([]);
@@ -209,19 +252,29 @@ function BundlesTab() {
                   >Delete</button>
                 </div>
               </div>
-              <div className="flex gap-3 text-xs text-text-sec flex-wrap items-center">
-                <span>{n((b as unknown as Record<string,unknown>).total_calories ?? b.calories)} kcal</span>
-                <span>F {n((b as unknown as Record<string,unknown>).total_fat ?? b.fat)}g</span>
-                <span>C {n((b as unknown as Record<string,unknown>).total_carbs ?? b.carbs)}g</span>
-                <span>P {n((b as unknown as Record<string,unknown>).total_protein ?? b.protein)}g</span>
-                <span>{b.ingredient_count} items</span>
-                {cm && !cm.can_make && (
-                  <button
-                    onClick={e => { e.stopPropagation(); addMissingToShopping(b.id); }}
-                    className="ml-auto text-xs px-2 py-0.5 rounded border border-border text-text-sec hover:border-accent hover:text-accent cursor-pointer transition-colors"
-                  >+ shopping list</button>
-                )}
-              </div>
+              <MacroRow
+                cal={Number((b as unknown as Record<string,unknown>).total_calories ?? b.calories)}
+                fat={Number((b as unknown as Record<string,unknown>).total_fat ?? b.fat)}
+                carbs={Number((b as unknown as Record<string,unknown>).total_carbs ?? b.carbs)}
+                fiber={Number((b as unknown as Record<string,unknown>).total_fiber ?? b.fiber)}
+                protein={Number((b as unknown as Record<string,unknown>).total_protein ?? b.protein)}
+                sugar={(b as unknown as Record<string,number|null>).total_sugar ?? b.sugar}
+                satFat={(b as unknown as Record<string,number|null>).total_saturated_fat ?? b.saturated_fat}
+                sodium={(b as unknown as Record<string,number|null>).total_sodium_mg ?? b.sodium_mg}
+                trackExtra={trackExtra}
+                saltUnit={saltUnit}
+                suffix={
+                  <>
+                    <span>{b.ingredient_count} items</span>
+                    {cm && !cm.can_make && (
+                      <button
+                        onClick={e => { e.stopPropagation(); addMissingToShopping(b.id); }}
+                        className="ml-auto text-xs px-2 py-0.5 rounded border border-border text-text-sec hover:border-accent hover:text-accent cursor-pointer transition-colors"
+                      >+ shopping list</button>
+                    )}
+                  </>
+                }
+              />
             </div>
             );
           })}
@@ -484,6 +537,9 @@ function BundleCreateModal({ foods, onClose, onCreate, initial }: {
 function RecipesTab() {
   const { showToast } = useToast();
   const { t, tMeal } = useT();
+  const { settings } = useSettings();
+  const trackExtra = settings.track_extra_nutrition === 1;
+  const saltUnit = (settings.extra_nutrition_unit ?? 'sodium') as 'sodium' | 'salt';
   const { current: deductionEvent, next: nextDeduction, push: pushDeduction } = useDeductionEvents();
   const [recipes, setRecipes]           = useState<ActualRecipe[]>([]);
   const [foods, setFoods]               = useState<Food[]>([]);
@@ -604,11 +660,16 @@ function RecipesTab() {
     if (!logTarget || !logTarget.yield_g || !logGrams) return null;
     const ratio = parseFloat(logGrams) / logTarget.yield_g;
     if (isNaN(ratio) || ratio <= 0) return null;
+    const scale = (v: number | null | undefined) => v == null ? null : v * ratio;
     return {
-      cal:     n(logTarget.total_calories * ratio),
-      protein: nf(logTarget.total_protein * ratio),
-      carbs:   nf(logTarget.total_carbs * ratio),
-      fat:     nf(logTarget.total_fat * ratio),
+      cal:     logTarget.total_calories * ratio,
+      protein: logTarget.total_protein  * ratio,
+      carbs:   logTarget.total_carbs    * ratio,
+      fat:     logTarget.total_fat      * ratio,
+      fiber:   logTarget.total_fiber    * ratio,
+      sugar:   scale(logTarget.total_sugar),
+      satFat:  scale(logTarget.total_saturated_fat),
+      sodium:  scale(logTarget.total_sodium_mg),
     };
   })();
 
@@ -684,22 +745,32 @@ function RecipesTab() {
                   >Delete</button>
                 </div>
               </div>
-              <div className="flex gap-3 text-xs text-text-sec flex-wrap items-center">
-                <span>{n(r.total_calories)} kcal</span>
-                <span>F {n(r.total_fat)}g</span>
-                <span>C {n(r.total_carbs)}g</span>
-                <span>P {n(r.total_protein)}g</span>
-                {r.yield_g > 0 && <span>Yield {r.yield_g}g</span>}
-                {(r.prep_time_min > 0 || r.cook_time_min > 0) && (
-                  <span>{r.prep_time_min + r.cook_time_min} min</span>
-                )}
-                {cm && !cm.can_make && (
-                  <button
-                    onClick={e => { e.stopPropagation(); addMissingToShopping(r.id); }}
-                    className="ml-auto text-xs px-2 py-0.5 rounded border border-border text-text-sec hover:border-accent hover:text-accent cursor-pointer transition-colors"
-                  >+ shopping list</button>
-                )}
-              </div>
+              <MacroRow
+                cal={r.total_calories}
+                fat={r.total_fat}
+                carbs={r.total_carbs}
+                fiber={r.total_fiber}
+                protein={r.total_protein}
+                sugar={r.total_sugar}
+                satFat={r.total_saturated_fat}
+                sodium={r.total_sodium_mg}
+                trackExtra={trackExtra}
+                saltUnit={saltUnit}
+                suffix={
+                  <>
+                    {r.yield_g > 0 && <span>Yield {r.yield_g}g</span>}
+                    {(r.prep_time_min > 0 || r.cook_time_min > 0) && (
+                      <span>{r.prep_time_min + r.cook_time_min} min</span>
+                    )}
+                    {cm && !cm.can_make && (
+                      <button
+                        onClick={e => { e.stopPropagation(); addMissingToShopping(r.id); }}
+                        className="ml-auto text-xs px-2 py-0.5 rounded border border-border text-text-sec hover:border-accent hover:text-accent cursor-pointer transition-colors"
+                      >+ shopping list</button>
+                    )}
+                  </>
+                }
+              />
             </div>
             );
           })}
@@ -740,11 +811,19 @@ function RecipesTab() {
                   onChange={e => setLogGrams(e.target.value)} />
               </div>
               {logPreview && (
-                <div className="flex gap-3 text-xs rounded-lg bg-bg border border-border px-3 py-2">
-                  <span className="text-text font-medium">{logPreview.cal} kcal</span>
-                  <span className="text-text-sec">F {logPreview.fat}g</span>
-                  <span className="text-text-sec">C {logPreview.carbs}g</span>
-                  <span className="text-text-sec">P {logPreview.protein}g</span>
+                <div className="rounded-lg bg-bg border border-border px-3 py-2">
+                  <MacroRow
+                    cal={logPreview.cal}
+                    fat={logPreview.fat}
+                    carbs={logPreview.carbs}
+                    fiber={logPreview.fiber}
+                    protein={logPreview.protein}
+                    sugar={logPreview.sugar}
+                    satFat={logPreview.satFat}
+                    sodium={logPreview.sodium}
+                    trackExtra={trackExtra}
+                    saltUnit={saltUnit}
+                  />
                 </div>
               )}
               <div className="space-y-1">
@@ -814,6 +893,9 @@ function RecipeDetailModal({ detail: initialDetail, foods, onClose, onSave }: {
   onClose: () => void;
   onSave: (r: ActualRecipe) => void;
 }) {
+  const { settings } = useSettings();
+  const trackExtra = settings.track_extra_nutrition === 1;
+  const saltUnit = (settings.extra_nutrition_unit ?? 'sodium') as 'sodium' | 'salt';
   const [detail, setDetail] = useState<ActualRecipe>(initialDetail);
   const [tab, setTab]       = useState<'ingredients' | 'procedure' | 'details'>('ingredients');
 
@@ -824,8 +906,12 @@ function RecipeDetailModal({ detail: initialDetail, foods, onClose, onSave }: {
     acc.protein += ing.protein;
     acc.carbs   += ing.carbs;
     acc.fat     += ing.fat;
+    acc.fiber   += ing.fiber ?? 0;
+    if (ing.sugar         != null) acc.sugar   += ing.sugar;
+    if (ing.saturated_fat != null) acc.satFat  += ing.saturated_fat;
+    if (ing.sodium_mg     != null) acc.sodium  += ing.sodium_mg;
     return acc;
-  }, { cal: 0, protein: 0, carbs: 0, fat: 0 });
+  }, { cal: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0, satFat: 0, sodium: 0 });
 
   const totalRawGrams = (detail.ingredients ?? []).reduce((s, i) => s + i.grams, 0);
 
@@ -869,13 +955,21 @@ function RecipeDetailModal({ detail: initialDetail, foods, onClose, onSave }: {
         </div>
 
         {/* Macro totals bar */}
-        <div className="flex flex-wrap gap-4 text-xs text-text-sec bg-bg rounded-lg px-4 py-3 tabular-nums">
-          <span><span className="text-text font-semibold text-sm">{Math.round(totals.cal)}</span> kcal</span>
-          <span>P <span className="text-text font-medium">{Math.round(totals.protein * 10) / 10}</span>g</span>
-          <span>C <span className="text-text font-medium">{Math.round(totals.carbs * 10) / 10}</span>g</span>
-          <span>F <span className="text-text font-medium">{Math.round(totals.fat * 10) / 10}</span>g</span>
-          {totalRawGrams > 0 && <span className="ml-auto">Raw {Math.round(totalRawGrams)}g</span>}
-          <span className={(totalRawGrams > 0 ? '' : 'ml-auto')}>{(detail.ingredients ?? []).length} ingredients</span>
+        <div className="bg-bg rounded-lg px-4 py-3">
+          <MacroRow
+            cal={totals.cal} fat={totals.fat} carbs={totals.carbs}
+            fiber={totals.fiber} protein={totals.protein}
+            sugar={trackExtra ? totals.sugar : null}
+            satFat={trackExtra ? totals.satFat : null}
+            sodium={trackExtra ? totals.sodium : null}
+            trackExtra={trackExtra} saltUnit={saltUnit}
+            suffix={
+              <>
+                {totalRawGrams > 0 && <span className="ml-auto">Raw {Math.round(totalRawGrams)}g</span>}
+                <span className={(totalRawGrams > 0 ? '' : 'ml-auto')}>{(detail.ingredients ?? []).length} ingredients</span>
+              </>
+            }
+          />
         </div>
 
         {/* Tabs */}
@@ -990,6 +1084,9 @@ function RecipeCreateModal({ foods, onClose, onCreate }: {
   onClose: () => void;
   onCreate: (data: { name: string; description: string; yield_g: number; notes: string; prep_time_min: number; cook_time_min: number; tools: string; procedure: string; ingredients: { food_id: number; grams: number }[] }) => Promise<void>;
 }) {
+  const { settings } = useSettings();
+  const trackExtra = settings.track_extra_nutrition === 1;
+  const saltUnit = (settings.extra_nutrition_unit ?? 'sodium') as 'sodium' | 'salt';
   const [name, setName]               = useState('');
   const [desc, setDesc]               = useState('');
   const [yieldG, setYieldG]           = useState('');
@@ -1024,8 +1121,12 @@ function RecipeCreateModal({ foods, onClose, onCreate }: {
     acc.protein += f.protein  * r;
     acc.carbs   += f.carbs    * r;
     acc.fat     += f.fat      * r;
+    acc.fiber   += (f.fiber ?? 0) * r;
+    if (f.sugar         != null) acc.sugar  += f.sugar         * r;
+    if (f.saturated_fat != null) acc.satFat += f.saturated_fat * r;
+    if (f.sodium_mg     != null) acc.sodium += f.sodium_mg     * r;
     return acc;
-  }, { cal: 0, protein: 0, carbs: 0, fat: 0 });
+  }, { cal: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0, satFat: 0, sodium: 0 });
 
   const TABS = [
     { id: 'ingredients', label: 'Ingredients' },
@@ -1045,12 +1146,16 @@ function RecipeCreateModal({ foods, onClose, onCreate }: {
         </div>
 
         {/* Macro totals bar */}
-        <div className="flex flex-wrap gap-4 text-xs text-text-sec bg-bg rounded-lg px-4 py-3 tabular-nums">
-          <span><span className="text-text font-semibold text-sm">{Math.round(totals.cal)}</span> kcal</span>
-          <span>P <span className="text-text font-medium">{Math.round(totals.protein * 10) / 10}</span>g</span>
-          <span>C <span className="text-text font-medium">{Math.round(totals.carbs * 10) / 10}</span>g</span>
-          <span>F <span className="text-text font-medium">{Math.round(totals.fat * 10) / 10}</span>g</span>
-          <span className="ml-auto">{ingredients.length} {ingredients.length === 1 ? 'ingredient' : 'ingredients'}</span>
+        <div className="bg-bg rounded-lg px-4 py-3">
+          <MacroRow
+            cal={totals.cal} fat={totals.fat} carbs={totals.carbs}
+            fiber={totals.fiber} protein={totals.protein}
+            sugar={trackExtra ? totals.sugar : null}
+            satFat={trackExtra ? totals.satFat : null}
+            sodium={trackExtra ? totals.sodium : null}
+            trackExtra={trackExtra} saltUnit={saltUnit}
+            suffix={<span className="ml-auto">{ingredients.length} {ingredients.length === 1 ? 'ingredient' : 'ingredients'}</span>}
+          />
         </div>
 
         {/* Tabs */}

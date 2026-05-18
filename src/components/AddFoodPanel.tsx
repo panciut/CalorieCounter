@@ -239,12 +239,14 @@ export default function AddFoodPanel({ onSaved, knownFoods, onFoodFound, default
     vegetable:   'foods.vegetable',
   };
 
+  // Nutrition-label order: kcal, Fat (└ Sat fat), Carbs (└ Sugar), Fiber, Protein, Salt
   const macroFields: { key: keyof FoodFormState; label: string }[] = [
     { key: 'calories',    label: 'kcal'          },
     { key: 'fat',         label: t('th.fat')     },
     { key: 'carbs',       label: t('th.carbs')   },
     { key: 'fiber',       label: t('th.fiber')   },
     { key: 'protein',     label: t('th.protein') },
+    ...(trackExtra ? [{ key: 'sodium_or_salt' as keyof FoodFormState, label: unit === 'salt' ? `${t('nutrition.salt')} (g)` : `${t('nutrition.sodium')} (mg)` }] : []),
   ];
 
   return (
@@ -319,8 +321,8 @@ export default function AddFoodPanel({ onSaved, knownFoods, onFoodFound, default
             />
           </div>
 
-          {/* Macros + flags */}
-          <div className="flex items-end gap-2">
+          {/* Macros + flags — nutrition-label order; sub-fields appear under fat/carbs when tracking extras */}
+          <div className="flex items-start gap-2">
             {macroFields.map(({ key, label }) => (
               <div key={key} className="flex flex-col gap-0.5 flex-1 min-w-0">
                 <label className="text-xs text-text-sec truncate">{label}</label>
@@ -332,15 +334,41 @@ export default function AddFoodPanel({ onSaved, knownFoods, onFoodFound, default
                   placeholder="0"
                   className={INPUT_CLASS}
                 />
+                {trackExtra && key === 'fat' && (
+                  <>
+                    <label className="text-[10px] text-text-sec/70 truncate pl-1.5 pt-0.5">└ {t('nutrition.saturatedFat')}</label>
+                    <input
+                      type="text" inputMode="decimal"
+                      value={form.saturated_fat}
+                      onChange={e => patch({ saturated_fat: e.target.value })}
+                      onKeyDown={e => e.key === 'Enter' && handleAdd()}
+                      placeholder="0"
+                      className="bg-bg/60 border border-border/60 rounded px-2 py-1 text-text text-xs outline-none focus:border-accent w-full"
+                    />
+                  </>
+                )}
+                {trackExtra && key === 'carbs' && (
+                  <>
+                    <label className="text-[10px] text-text-sec/70 truncate pl-1.5 pt-0.5">└ {t('nutrition.sugar')}</label>
+                    <input
+                      type="text" inputMode="decimal"
+                      value={form.sugar}
+                      onChange={e => patch({ sugar: e.target.value })}
+                      onKeyDown={e => e.key === 'Enter' && handleAdd()}
+                      placeholder="0"
+                      className="bg-bg/60 border border-border/60 rounded px-2 py-1 text-text text-xs outline-none focus:border-accent w-full"
+                    />
+                  </>
+                )}
               </div>
             ))}
             <div className="flex flex-col gap-0.5 items-center shrink-0 pb-1.5">
               <label className="text-xs text-text-sec">💧</label>
-              <input type="checkbox" checked={form.is_liquid} onChange={e => patch({ is_liquid: e.target.checked })} className="cursor-pointer accent-accent w-4 h-4" />
+              <input type="checkbox" checked={form.is_liquid} onChange={e => patch({ is_liquid: e.target.checked })} className="cursor-pointer accent-accent w-4 h-4 mt-1.5" />
             </div>
             <div className="flex flex-col gap-0.5 items-center shrink-0 pb-1.5" title={t('foods.bulkHelp')}>
               <label className="text-xs text-text-sec">{t('foods.bulk')}</label>
-              <input type="checkbox" checked={form.is_bulk} onChange={e => patch({ is_bulk: e.target.checked, piece_grams: e.target.checked ? '' : form.piece_grams })} className="cursor-pointer accent-accent w-4 h-4" />
+              <input type="checkbox" checked={form.is_bulk} onChange={e => patch({ is_bulk: e.target.checked, piece_grams: e.target.checked ? '' : form.piece_grams })} className="cursor-pointer accent-accent w-4 h-4 mt-1.5" />
             </div>
           </div>
 
@@ -357,47 +385,6 @@ export default function AddFoodPanel({ onSaved, knownFoods, onFoodFound, default
               ))}
             </select>
           </div>
-
-          {/* Extra nutrition (sugar / sat fat / sodium-or-salt) — only when toggle is on */}
-          {trackExtra && (
-            <div className="flex items-end gap-2">
-              <div className="flex flex-col gap-0.5 flex-1 min-w-0">
-                <label className="text-xs text-text-sec truncate">{t('nutrition.sugar')} (g)</label>
-                <input
-                  type="text" inputMode="decimal"
-                  value={form.sugar}
-                  onChange={e => patch({ sugar: e.target.value })}
-                  onKeyDown={e => e.key === 'Enter' && handleAdd()}
-                  placeholder="0"
-                  className={INPUT_CLASS}
-                />
-              </div>
-              <div className="flex flex-col gap-0.5 flex-1 min-w-0">
-                <label className="text-xs text-text-sec truncate">{t('nutrition.saturatedFat')} (g)</label>
-                <input
-                  type="text" inputMode="decimal"
-                  value={form.saturated_fat}
-                  onChange={e => patch({ saturated_fat: e.target.value })}
-                  onKeyDown={e => e.key === 'Enter' && handleAdd()}
-                  placeholder="0"
-                  className={INPUT_CLASS}
-                />
-              </div>
-              <div className="flex flex-col gap-0.5 flex-1 min-w-0">
-                <label className="text-xs text-text-sec truncate">
-                  {unit === 'salt' ? `${t('nutrition.salt')} (g)` : `${t('nutrition.sodium')} (mg)`}
-                </label>
-                <input
-                  type="text" inputMode="decimal"
-                  value={form.sodium_or_salt}
-                  onChange={e => patch({ sodium_or_salt: e.target.value })}
-                  onKeyDown={e => e.key === 'Enter' && handleAdd()}
-                  placeholder="0"
-                  className={INPUT_CLASS}
-                />
-              </div>
-            </div>
-          )}
 
           {/* Packs */}
           <div className="border-t border-border pt-2 flex flex-col gap-2">

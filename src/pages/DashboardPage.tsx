@@ -116,7 +116,7 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
       api.water.getDay(dateStr),
       api.recipes.getAll(),
       api.notes.get(dateStr),
-      api.foods.getFrequent(10),
+      api.foods.getFrequent(200),
     ]);
     setEntries(ent);
     setFoods(fds);

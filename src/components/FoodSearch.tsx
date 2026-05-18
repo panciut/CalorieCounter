@@ -36,15 +36,18 @@ export default function FoodSearch({ items, onSelect, placeholder = 'Search…',
     if (!query.trim()) {
       return showAllWhenEmpty ? allSorted : [];
     }
-    const raw = fuse.search(query).slice(0, 20);
-    // Sort: exact prefix match first, then by frequency, then fuse score
+    const raw = fuse.search(query).slice(0, 30);
+    // Hybrid: frequency boosts the fuse score (lower = better), but exact/near-exact
+    // matches still win. Effective score = fuse.score - log10(freq+1) * 0.06, capped at 0.2 boost.
+    // So "pa" with freq=100 "pasta" beats "parmigiano" with freq=0; but typing "parm" still
+    // prefers "parmigiano" over a frequent "pasta".
     return raw
-      .sort((a, b) => {
-        const aFreq = (a.item as SearchItem & { _freq?: number })._freq ?? 0;
-        const bFreq = (b.item as SearchItem & { _freq?: number })._freq ?? 0;
-        if (bFreq !== aFreq) return bFreq - aFreq;
-        return (a.score ?? 1) - (b.score ?? 1);
+      .map(r => {
+        const freq = (r.item as SearchItem & { _freq?: number })._freq ?? 0;
+        const boost = freq > 0 ? Math.min(0.2, Math.log10(freq + 1) * 0.06) : 0;
+        return { item: r.item, eff: (r.score ?? 1) - boost };
       })
+      .sort((a, b) => a.eff - b.eff)
       .slice(0, 10)
       .map(r => r.item);
   }, [query, fuse]);

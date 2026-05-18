@@ -1,4 +1,5 @@
 const { ipcMain } = require('electron');
+const crypto = require('crypto');
 const { getDb } = require('../db');
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -12,6 +13,9 @@ function registerRecipesIpc() {
         ROUND(SUM(f.carbs    * ri.grams / 100), 2) AS total_carbs,
         ROUND(SUM(f.fat      * ri.grams / 100), 2) AS total_fat,
         ROUND(SUM(f.fiber    * ri.grams / 100), 2) AS total_fiber,
+        ROUND(SUM(f.sugar         * ri.grams / 100), 2) AS total_sugar,
+        ROUND(SUM(f.saturated_fat * ri.grams / 100), 2) AS total_saturated_fat,
+        ROUND(SUM(f.sodium_mg     * ri.grams / 100), 2) AS total_sodium_mg,
         COUNT(ri.id) AS ingredient_count
       FROM recipes r
       JOIN recipe_ingredients ri ON ri.recipe_id = r.id
@@ -30,7 +34,10 @@ function registerRecipesIpc() {
         ROUND(f.protein  * ri.grams / 100, 2) AS protein,
         ROUND(f.carbs    * ri.grams / 100, 2) AS carbs,
         ROUND(f.fat      * ri.grams / 100, 2) AS fat,
-        ROUND(f.fiber    * ri.grams / 100, 2) AS fiber
+        ROUND(f.fiber    * ri.grams / 100, 2) AS fiber,
+        ROUND(f.sugar         * ri.grams / 100, 2) AS sugar,
+        ROUND(f.saturated_fat * ri.grams / 100, 2) AS saturated_fat,
+        ROUND(f.sodium_mg     * ri.grams / 100, 2) AS sodium_mg
       FROM recipe_ingredients ri
       JOIN foods f ON f.id = ri.food_id
       WHERE ri.recipe_id = ?
@@ -63,17 +70,19 @@ function registerRecipesIpc() {
     const db = getDb();
     const d = date || today();
     const s = scale || 1;
+    const recipe = db.prepare('SELECT name FROM recipes WHERE id = ?').get(recipe_id);
     const ingredients = db.prepare(
       'SELECT food_id, grams FROM recipe_ingredients WHERE recipe_id = ?'
     ).all(recipe_id);
+    const recipeLogId = crypto.randomUUID();
     return db.transaction(() => {
       const insert = db.prepare(
-        'INSERT INTO log (date, food_id, grams, meal) VALUES (?, ?, ?, ?)'
+        'INSERT INTO log (date, food_id, grams, meal, recipe_log_id, recipe_name) VALUES (?, ?, ?, ?, ?, ?)'
       );
       for (const { food_id, grams } of ingredients) {
-        insert.run(d, food_id, grams * s, meal || 'AfternoonSnack');
+        insert.run(d, food_id, grams * s, meal || 'AfternoonSnack', recipeLogId, recipe?.name || null);
       }
-      return { count: ingredients.length };
+      return { count: ingredients.length, recipe_log_id: recipeLogId };
     })();
   });
 

@@ -16,7 +16,10 @@ function registerExportIpc() {
         ROUND(f.protein  * l.grams / 100, 2) AS protein,
         ROUND(f.carbs    * l.grams / 100, 2) AS carbs,
         ROUND(f.fat      * l.grams / 100, 2) AS fat,
-        ROUND(f.fiber    * l.grams / 100, 2) AS fiber
+        ROUND(f.fiber    * l.grams / 100, 2) AS fiber,
+        ROUND(f.sugar         * l.grams / 100, 2) AS sugar,
+        ROUND(f.saturated_fat * l.grams / 100, 2) AS saturated_fat,
+        ROUND(f.sodium_mg     * l.grams / 100, 2) AS sodium_mg
       FROM log l JOIN foods f ON l.food_id = f.id
       ORDER BY l.date DESC, l.id
     `).all();
@@ -43,14 +46,14 @@ function registerExportIpc() {
       let csv = '';
 
       csv += '## Foods\n';
-      csv += 'id,name,calories,protein,carbs,fat,fiber,piece_grams,is_liquid,favorite\n';
+      csv += 'id,name,category,calories,protein,carbs,fat,fiber,sugar,saturated_fat,sodium_mg,piece_grams,is_liquid,is_bulk,barcode,opened_days,discard_threshold_pct,price_per_100g,favorite\n';
       for (const f of foods)
-        csv += `${f.id},${q(f.name)},${f.calories},${f.protein},${f.carbs},${f.fat},${f.fiber},${f.piece_grams ?? ''},${f.is_liquid ?? 0},${f.favorite ?? 0}\n`;
+        csv += `${f.id},${q(f.name)},${q(f.category ?? '')},${f.calories},${f.protein},${f.carbs},${f.fat},${f.fiber},${f.sugar ?? ''},${f.saturated_fat ?? ''},${f.sodium_mg ?? ''},${f.piece_grams ?? ''},${f.is_liquid ?? 0},${f.is_bulk ?? 0},${q(f.barcode ?? '')},${f.opened_days ?? ''},${f.discard_threshold_pct ?? ''},${f.price_per_100g ?? ''},${f.favorite ?? 0}\n`;
 
       csv += '\n## Food Log\n';
-      csv += 'id,date,food_name,grams,meal,status,calories,protein,carbs,fat,fiber\n';
+      csv += 'id,date,food_name,grams,meal,status,calories,protein,carbs,fat,fiber,sugar,saturated_fat,sodium_mg\n';
       for (const l of log)
-        csv += `${l.id},${l.date},${q(l.food_name)},${l.grams},${l.meal},${l.status ?? 'logged'},${l.calories},${l.protein},${l.carbs},${l.fat},${l.fiber}\n`;
+        csv += `${l.id},${l.date},${q(l.food_name)},${l.grams},${l.meal},${l.status ?? 'logged'},${l.calories},${l.protein},${l.carbs},${l.fat},${l.fiber},${l.sugar ?? ''},${l.saturated_fat ?? ''},${l.sodium_mg ?? ''}\n`;
 
       csv += '\n## Weight & Body Composition\n';
       csv += 'id,date,weight,fat_pct,muscle_mass,water_pct,bone_mass\n';
@@ -86,7 +89,7 @@ function registerExportIpc() {
   // ── Export food database as JSON ──────────────────────────────────────────
   ipcMain.handle('export:foods', async () => {
     const db = getDb();
-    const foods = db.prepare('SELECT name, calories, protein, carbs, fat, fiber, piece_grams, is_liquid, is_bulk, opened_days, barcode, favorite FROM foods WHERE is_placeholder = 0 ORDER BY name').all();
+    const foods = db.prepare('SELECT name, category, calories, protein, carbs, fat, fiber, sugar, saturated_fat, sodium_mg, piece_grams, is_liquid, is_bulk, opened_days, discard_threshold_pct, price_per_100g, barcode, favorite FROM foods WHERE is_placeholder = 0 ORDER BY name').all();
 
     const result = await dialog.showSaveDialog({
       defaultPath: `foods-${new Date().toISOString().slice(0,10)}.json`,
@@ -221,7 +224,10 @@ function buildJournalMarkdown(db, startDate, endDate, mealsOnly) {
         ROUND(f.protein  * l.grams / 100, 2) AS protein,
         ROUND(f.carbs    * l.grams / 100, 2) AS carbs,
         ROUND(f.fat      * l.grams / 100, 2) AS fat,
-        ROUND(f.fiber    * l.grams / 100, 2) AS fiber
+        ROUND(f.fiber    * l.grams / 100, 2) AS fiber,
+        ROUND(f.sugar         * l.grams / 100, 2) AS sugar,
+        ROUND(f.saturated_fat * l.grams / 100, 2) AS sat_fat,
+        ROUND(f.sodium_mg     * l.grams / 100, 2) AS sodium_mg
       FROM log l JOIN foods f ON f.id = l.food_id
       WHERE l.date = ? AND l.status = 'logged'
       ORDER BY l.id
@@ -233,11 +239,17 @@ function buildJournalMarkdown(db, startDate, endDate, mealsOnly) {
       carbs:   s.carbs   + (e.carbs   || 0),
       fat:     s.fat     + (e.fat     || 0),
       fiber:   s.fiber   + (e.fiber   || 0),
-    }), { kcal: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 });
+      sugar:   s.sugar   + (e.sugar   || 0),
+      sat_fat: s.sat_fat + (e.sat_fat || 0),
+      sodium:  s.sodium  + (e.sodium_mg || 0),
+    }), { kcal: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0, sat_fat: 0, sodium: 0 });
 
     const goal = goalForDate(db, d);
     const tg = goal && goal.cal_rec ? ` · target ${goal.cal_rec} kcal` : '';
-    lines.push(`**Totals**: ${r(totals.kcal, 0)} kcal · ${r(totals.protein)}P / ${r(totals.carbs)}C / ${r(totals.fat)}F / ${r(totals.fiber)} fib${tg}`);
+    const extras = (totals.sugar || totals.sat_fat || totals.sodium)
+      ? ` · sugar ${r(totals.sugar)}g · sat-fat ${r(totals.sat_fat)}g · sodium ${Math.round(totals.sodium)}mg`
+      : '';
+    lines.push(`**Totals**: ${r(totals.kcal, 0)} kcal · ${r(totals.protein)}P / ${r(totals.carbs)}C / ${r(totals.fat)}F / ${r(totals.fiber)} fib${extras}${tg}`);
 
     if (!mealsOnly) {
       const wt = db.prepare('SELECT weight, fat_pct FROM weight_log WHERE date = ?').get(d);
