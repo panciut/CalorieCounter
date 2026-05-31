@@ -121,6 +121,49 @@ function registerSupplementsIpc() {
     `).all(date, plan.id);
   });
 
+  ipcMain.handle('supplements:fill', (_, { supplement_id, date }) => {
+    const db = getDb();
+    const plan = getPlanForDate(db, date);
+    const item = plan
+      ? db.prepare('SELECT qty FROM supplement_plan_items WHERE plan_id = ? AND supplement_id = ?').get(plan.id, supplement_id)
+      : null;
+    const effectiveQty = item?.qty ?? 1;
+
+    const existing = db.prepare(
+      'SELECT count FROM supplement_log WHERE supplement_id = ? AND date = ?'
+    ).get(supplement_id, date);
+    if (!existing) {
+      db.prepare('INSERT INTO supplement_log (supplement_id, date, count) VALUES (?, ?, ?)').run(supplement_id, date, effectiveQty);
+    } else {
+      db.prepare('UPDATE supplement_log SET count = ? WHERE supplement_id = ? AND date = ?').run(effectiveQty, supplement_id, date);
+    }
+    return { taken: effectiveQty };
+  });
+
+  ipcMain.handle('supplements:fillSlot', (_, { date, time_of_day }) => {
+    const db = getDb();
+    const plan = getPlanForDate(db, date);
+    if (!plan) return { ok: true, filled: 0 };
+    const items = db.prepare(
+      'SELECT supplement_id, qty FROM supplement_plan_items WHERE plan_id = ? AND time_of_day = ?'
+    ).all(plan.id, time_of_day);
+
+    const upsert = db.transaction((rows) => {
+      const sel = db.prepare('SELECT count FROM supplement_log WHERE supplement_id = ? AND date = ?');
+      const ins = db.prepare('INSERT INTO supplement_log (supplement_id, date, count) VALUES (?, ?, ?)');
+      const upd = db.prepare('UPDATE supplement_log SET count = ? WHERE supplement_id = ? AND date = ?');
+      let filled = 0;
+      for (const row of rows) {
+        const ex = sel.get(row.supplement_id, date);
+        if (!ex) { ins.run(row.supplement_id, date, row.qty); filled++; }
+        else if (ex.count < row.qty) { upd.run(row.qty, row.supplement_id, date); filled++; }
+      }
+      return filled;
+    });
+    const filled = upsert(items);
+    return { ok: true, filled };
+  });
+
   ipcMain.handle('supplements:take', (_, { supplement_id, date }) => {
     const db = getDb();
     const plan = getPlanForDate(db, date);

@@ -220,6 +220,8 @@ export const api = {
     delete:       (id: number) => invoke<{ ok: boolean; reason?: string }>('supplements:delete', { id }),
     getDay:       (date: string) => invoke<SupplementDay[]>('supplements:getDay', { date }),
     take:         (data: { supplement_id: number; date: string }) => invoke<{ taken: number }>('supplements:take', data),
+    fill:         (data: { supplement_id: number; date: string }) => invoke<{ taken: number }>('supplements:fill', data),
+    fillSlot:     (data: { date: string; time_of_day: string }) => invoke<{ ok: boolean; filled: number }>('supplements:fillSlot', data),
     getAdherence: (days: number) => invoke<SupplementAdherence[]>('supplements:getAdherence', { days }),
   },
 

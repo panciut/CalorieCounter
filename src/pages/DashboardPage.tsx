@@ -314,6 +314,16 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
     setSupplements(await api.supplements.getDay(dateStr));
   }
 
+  async function handleFillSuppl(id: number) {
+    await api.supplements.fill({ supplement_id: id, date: dateStr });
+    setSupplements(await api.supplements.getDay(dateStr));
+  }
+
+  async function handleCompleteSlot(slot: string) {
+    await api.supplements.fillSlot({ date: dateStr, time_of_day: slot });
+    setSupplements(await api.supplements.getDay(dateStr));
+  }
+
   // ── Notes ───────────────────────────────────────────────────────────────────
 
   function handleNoteChange(val: string) {
@@ -614,23 +624,46 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
               {SUPPLEMENT_TIME_ORDER.map(slot => {
                 const group = supplements.filter(s => (s.time_of_day ?? 'breakfast') === slot);
                 if (group.length === 0) return null;
+                const slotAllDone = group.every(s => s.taken >= s.qty);
                 return (
                   <div key={slot} className="flex flex-col gap-1">
-                    <div className="text-[10px] uppercase tracking-wider text-text-sec/50">
-                      {t(`suppl.time.${slot}`)}
+                    <div className="flex items-center justify-between">
+                      <div className="text-[10px] uppercase tracking-wider text-text-sec/50">
+                        {t(`suppl.time.${slot}`)}
+                      </div>
+                      {!slotAllDone && (
+                        <button
+                          onClick={()=>handleCompleteSlot(slot)}
+                          className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded cursor-pointer text-accent border border-accent/40 hover:bg-accent/10 transition-colors"
+                        >
+                          {t('suppl.completeAll')}
+                        </button>
+                      )}
                     </div>
                     {group.map(s => {
                       const done = s.taken >= s.qty;
+                      const multi = s.qty > 1;
                       return (
                         <div key={s.id} className="flex items-center justify-between gap-2">
                           <span className={`text-sm ${done ? 'text-text-sec line-through' : 'text-text'}`}>{s.name}</span>
-                          <button
-                            disabled={done}
-                            onClick={()=>handleTakeSuppl(s.id)}
-                            className={`text-xs px-2 py-0.5 rounded cursor-pointer transition-colors ${done?'text-text-sec':'text-accent border border-accent/40 hover:bg-accent/10'}`}
-                          >
-                            {s.taken}/{s.qty}
-                          </button>
+                          <div className="flex items-center gap-1">
+                            {multi && !done && (
+                              <button
+                                onClick={()=>handleFillSuppl(s.id)}
+                                title={t('suppl.fillAll')}
+                                className="text-xs px-1.5 py-0.5 rounded cursor-pointer text-text-sec border border-border hover:border-accent hover:text-accent transition-colors"
+                              >
+                                ✓✓
+                              </button>
+                            )}
+                            <button
+                              disabled={done}
+                              onClick={()=>handleTakeSuppl(s.id)}
+                              className={`text-xs px-2 py-0.5 rounded cursor-pointer transition-colors ${done?'text-text-sec':'text-accent border border-accent/40 hover:bg-accent/10'}`}
+                            >
+                              {s.taken}/{s.qty}
+                            </button>
+                          </div>
                         </div>
                       );
                     })}
